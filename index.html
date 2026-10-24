@@ -2,60 +2,306 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>New Wave | Discover Your Sound</title>
-  <style>
-    body {
-      margin: 0;
-      background: #0b0b17;
-      color: white;
-      font-family: Arial, sans-serif;
-      text-align: center;
-    }
-    header {
-      padding: 70px 20px 40px;
-    }
-    h1 {
-      font-size: 52px;
-      color: #a855f7;
-      margin-bottom: 10px;
-    }
-    p {
-      color: #b5b5c9;
-      line-height: 1.6;
-    }
-    .button {
-      display: inline-block;
-      margin: 15px;
-      padding: 15px 28px;
-      background: #9333ea;
-      color: white;
-      border-radius: 30px;
-      text-decoration: none;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New Wave | Your Music. Your People.</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #0b0b17;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+nav {
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #29243c;
+}
+.logo {
+  color: #a855f7;
+  font-size: 25px;
+  font-weight: bold;
+}
+.hero {
+  text-align: center;
+  padding: 65px 20px 35px;
+}
+h1 {
+  color: #a855f7;
+  font-size: clamp(42px, 10vw, 65px);
+  margin: 0 0 20px;
+}
+h2 { margin-top: 0; }
+p {
+  color: #b5b5c9;
+  line-height: 1.6;
+}
+button {
+  padding: 13px 22px;
+  border: none;
+  border-radius: 25px;
+  background: #9333ea;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: .5;
+  cursor: wait;
+}
+.secondary {
+  background: #27223a;
+}
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 30px 0;
+}
+.card {
+  background: #171425;
+  padding: 25px;
+  border: 1px solid #34284a;
+  border-radius: 18px;
+  max-width: 430px;
+  margin: 25px auto;
+}
+input {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  margin: 12px 0;
+  border-radius: 9px;
+  border: 1px solid #50415e;
+  background: #0d0b18;
+  color: white;
+  font-size: 16px;
+}
+.hidden { display: none !important; }
+#message {
+  max-width: 430px;
+  margin: 15px auto;
+  text-align: center;
+  padding: 0 15px;
+  overflow-wrap: anywhere;
+}
+footer {
+  text-align: center;
+  padding: 50px 20px;
+}
+</style>
 </head>
 <body>
-  <header>
+
+<nav>
+  <div class="logo">NEW WAVE</div>
+  <button id="logout" class="secondary hidden">
+    Log Out
+  </button>
+</nav>
+
+<main>
+  <section class="hero">
     <h1>NEW WAVE</h1>
     <h2>Your Music. Your People. Your Wave.</h2>
     <p>
       Discover independent artists, share your
-      music, and collaborate with musicians
+      music and collaborate with musicians
       around the world.
     </p>
-    <a class="button" href="#about">
-      Explore New Wave
-    </a>
-  </header>
 
-  <section id="about">
-    <h2>Find Your Sound</h2>
-    <p>
-      A new home for independent music.
-      Create. Share. Collaborate.
-    </p>
+    <div id="guestActions" class="actions">
+      <button id="showSignup">Create Account</button>
+      <button id="showLogin" class="secondary">
+        Log In
+      </button>
+    </div>
   </section>
+
+  <div id="message" role="status" aria-live="polite"></div>
+
+  <section id="signupBox" class="card hidden">
+    <h2>Create your account</h2>
+    <p>Join the next wave of independent music.</p>
+    <form id="signupForm">
+      <input id="signupEmail" type="email"
+        placeholder="Email address"
+        autocomplete="email" required>
+      <input id="signupPassword" type="password"
+        placeholder="Password (minimum 6 characters)"
+        autocomplete="new-password"
+        minlength="6" required>
+      <button type="submit">Sign Up</button>
+    </form>
+  </section>
+
+  <section id="loginBox" class="card hidden">
+    <h2>Welcome back</h2>
+    <form id="loginForm">
+      <input id="loginEmail" type="email"
+        placeholder="Email address"
+        autocomplete="email" required>
+      <input id="loginPassword" type="password"
+        placeholder="Password"
+        autocomplete="current-password" required>
+      <button type="submit">Log In</button>
+    </form>
+  </section>
+
+  <section id="dashboard" class="card hidden">
+    <h2>Welcome to New Wave!</h2>
+    <p>You are logged in as:</p>
+    <p id="userEmail"></p>
+    <p>Your artist dashboard is coming next.</p>
+  </section>
+</main>
+
+<footer>
+  <h2>Find Your Sound</h2>
+  <p>Create. Share. Collaborate.</p>
+</footer>
+
+<script type="module">
+import { createClient } from
+  "https://esm.sh/@supabase/supabase-js@2";
+
+const supabaseUrl =
+  "https://lovedwiabuwwsyzdqhml.supabase.co";
+
+const supabaseKey =
+  "sb_publishable_6h2qstLk62ZBrxhO0ozIHw_Fih1dOh6";
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+const $ = id => document.getElementById(id);
+
+function showMessage(text) {
+  $("message").textContent = text;
+}
+
+function showForm(which) {
+  $("signupBox").classList.toggle(
+    "hidden", which !== "signup"
+  );
+  $("loginBox").classList.toggle(
+    "hidden", which !== "login"
+  );
+  showMessage("");
+}
+
+$("showSignup").addEventListener("click", () => {
+  showForm("signup");
+});
+
+$("showLogin").addEventListener("click", () => {
+  showForm("login");
+});
+
+function renderUser(user) {
+  const loggedIn = !!user;
+
+  $("guestActions").classList.toggle(
+    "hidden", loggedIn
+  );
+  $("dashboard").classList.toggle(
+    "hidden", !loggedIn
+  );
+  $("logout").classList.toggle(
+    "hidden", !loggedIn
+  );
+
+  $("signupBox").classList.add("hidden");
+  $("loginBox").classList.add("hidden");
+
+  $("userEmail").textContent = user?.email || "";
+}
+
+$("signupForm").addEventListener("submit", async e => {
+  e.preventDefault();
+
+  const email = $("signupEmail").value.trim();
+  const password = $("signupPassword").value;
+  const button = e.target.querySelector("button");
+
+  button.disabled = true;
+  showMessage("Creating your account...");
+
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: window.location.origin
+      }
+    });
+
+    if (error) throw error;
+
+    if (data.session) {
+      renderUser(data.user);
+      showMessage("Account created! Welcome to New Wave.");
+    } else {
+      showMessage(
+        "Check your email for a confirmation link, then return to New Wave and log in."
+      );
+    }
+  } catch (error) {
+    showMessage(error.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$("loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+
+  const email = $("loginEmail").value.trim();
+  const password = $("loginPassword").value;
+  const button = e.target.querySelector("button");
+
+  button.disabled = true;
+  showMessage("Logging in...");
+
+  try {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) throw error;
+
+    showMessage("Welcome back!");
+  } catch (error) {
+    showMessage(error.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$("logout").addEventListener("click", async () => {
+  const { error } = await supabase.auth.signOut();
+
+  if (error) {
+    showMessage(error.message);
+  } else {
+    showMessage("You have logged out.");
+  }
+});
+
+supabase.auth.onAuthStateChange((_event, session) => {
+  renderUser(session?.user ?? null);
+});
+
+const { data: { session }, error } =
+  await supabase.auth.getSession();
+
+if (error) showMessage(error.message);
+renderUser(session?.user ?? null);
+</script>
+
 </body>
 </html>
