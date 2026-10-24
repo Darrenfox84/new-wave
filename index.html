@@ -315,7 +315,8 @@ renderUser(session?.user ?? null);
 // NEW WAVE - MUSIC UPLOAD
 
 $("uploadTrack").addEventListener("click", async () => {
-  const message = $("uploadMessage");
+alert("Upload button is working!");
+const message = $("uploadMessage");
   const button = $("uploadTrack");
   const file = $("audioFile").files[0];
   const title = $("trackTitle").value.trim();
