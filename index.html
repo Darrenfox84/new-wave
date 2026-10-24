@@ -325,7 +325,7 @@ const message = $("uploadMessage");
     message.textContent = "Choose an audio file and enter a song title.";
     return;
   }
-
+const allowedTypes = ["audio/mpeg", "audio/wav", "audio/x-wav", "audio/mp4", "audio/x-m4a", "audio/m4a", "audio/aac"];
   const allowedTypes = ["audio/mpeg", "audio/wav", "audio/mp4"];
 
   if (!allowedTypes.includes(file.type)) {
