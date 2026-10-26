@@ -450,7 +450,7 @@ $("friendSearchForm").onsubmit=async e=>{
       const send=node("button","Send friend request");
       send.onclick=async()=>{
         send.disabled=true;
-        const {error:sendError}=await supabase.from("friend_requests").insert({requester_id:currentUser.id,receiver_id:profile.id});
+        const {error:sendError}=await supabase.from("friend_requests").insert({sender_id:currentUser.id,receiver_id:profile.id});
         if(sendError){friendStatus("Could not send request: "+errorText(sendError));send.disabled=false;return;}
         friendStatus("Friend request sent!");send.textContent="Request sent";
         await loadFriends();
