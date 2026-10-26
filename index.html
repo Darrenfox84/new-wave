@@ -1,11 +1,4 @@
-from pathlib import Path
-p=Path('/mnt/data/index.html')
-s=p.read_text()
-import re
-url=re.search(r'const supabaseUrl = "([^"]+)"',s).group(1)
-key=re.search(r'const supabaseKey = "([^"]+)"',s).group(1)
-out=Path('/mnt/data/new-wave-complete-index.html')
-html=r'''<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -94,7 +87,7 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 <footer><h2>Find Your Sound</h2><p>Create. Share. Collaborate.</p></footer>
 <script type="module">
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-const supabaseUrl = "https://ppxtmhkbyzsbgwhkqlgg.supabase.co";
+const supabaseUrl = "https://lovedwiabuwwsyzdqhml.supabase.co";
 const supabaseKey = "sb_publishable_6h2qstLk62ZBrxhO0ozIHw_Fih1dOh6";
 const supabase = createClient(supabaseUrl,supabaseKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $ = id => document.getElementById(id);
@@ -169,35 +162,43 @@ function trackCard(track,withSocial=false){
   if(withSocial){
     const row=node("div",undefined,"inline");
     const like=node("button","♥ Like","secondary");
-    
-like.onclick = async () => {
-  like.disabled = true;
-  like.textContent = "Saving...";
-
-  const { error } = await supabase
-    .from("track_likes")
-    .upsert(
-      {
-        user_id: currentUser.id,
-        track_id: track.id
-      },
-      {
-        onConflict: "user_id,track_id",
-        ignoreDuplicates: true
+    const countLabel=node("span","Loading likes...","small");
+    let liked=false;
+    let likeCount=0;
+    const paintLike=()=>{
+      like.textContent=liked?"♥ Liked":"♥ Like";
+      countLabel.textContent=likeCount+" "+(likeCount===1?"like":"likes");
+    };
+    async function refreshLike(){
+      const [countResult,userResult]=await Promise.all([
+        supabase.from("track_likes").select("track_id",{count:"exact",head:true}).eq("track_id",track.id),
+        supabase.from("track_likes").select("track_id").eq("track_id",track.id).eq("user_id",currentUser.id).maybeSingle()
+      ]);
+      if(countResult.error||userResult.error){
+        countLabel.textContent="Likes unavailable";
+        return;
       }
-    );
-
-  if (error) {
-    message("Could not like track: " + errorText(error));
-    like.textContent = "♥ Like";
-    like.disabled = false;
-  } else {
-    like.textContent = "♥ Liked";
-    message("Liked!");
-  }
-};
-
-    row.append(like);card.append(row);
+      likeCount=countResult.count??0;
+      liked=!!userResult.data;
+      paintLike();
+    }
+    like.onclick=async()=>{
+      if(!currentUser)return;
+      like.disabled=true;
+      const wasLiked=liked;
+      like.textContent="Saving...";
+      const query=supabase.from("track_likes");
+      const {error}=wasLiked
+        ? await query.delete().eq("user_id",currentUser.id).eq("track_id",track.id)
+        : await query.upsert({user_id:currentUser.id,track_id:track.id},{onConflict:"user_id,track_id",ignoreDuplicates:true});
+      if(error)message("Could not update like: "+errorText(error));
+      else await refreshLike();
+      if(error)paintLike();
+      like.disabled=false;
+    };
+    row.append(like,countLabel);
+    refreshLike();
+    card.append(row);
     const comments=node("div");
     const show=node("button","Show comments","secondary");
     show.onclick=async()=>{
@@ -313,7 +314,4 @@ try{
 }catch(err){message("Connection failed: "+errorText(err));}
 </script>
 </body>
-</html>'''
-html=html.replace('__SUPABASE_URL__',url).replace('__SUPABASE_KEY__',key)
-out.write_text(html)
-print(out, len(html), 'bytes')
+</html>
