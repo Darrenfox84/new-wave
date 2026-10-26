@@ -169,10 +169,34 @@ function trackCard(track,withSocial=false){
   if(withSocial){
     const row=node("div",undefined,"inline");
     const like=node("button","♥ Like","secondary");
-    like.onclick=async()=>{
-      const {error}=await supabase.from("track_likes").insert({user_id:currentUser.id,track_id:track.id});
-      if(error)message("Could not like track: "+errorText(error));else message("Liked!");
-    };
+    
+like.onclick = async () => {
+  like.disabled = true;
+  like.textContent = "Saving...";
+
+  const { error } = await supabase
+    .from("track_likes")
+    .upsert(
+      {
+        user_id: currentUser.id,
+        track_id: track.id
+      },
+      {
+        onConflict: "user_id,track_id",
+        ignoreDuplicates: true
+      }
+    );
+
+  if (error) {
+    message("Could not like track: " + errorText(error));
+    like.textContent = "♥ Like";
+    like.disabled = false;
+  } else {
+    like.textContent = "♥ Liked";
+    message("Liked!");
+  }
+};
+
     row.append(like);card.append(row);
     const comments=node("div");
     const show=node("button","Show comments","secondary");
