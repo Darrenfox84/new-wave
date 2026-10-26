@@ -421,7 +421,7 @@ async function changeFriend(id,action,button){
   button.disabled=true;
   const query=supabase.from("friend_requests");
   const {error}=action==="accept"
-    ? await query.update({status:"accepted"}).eq("id",id).eq("recipient_id",currentUser.id)
+    ? await query.update({status:"accepted"}).eq("id",id).eq("receiver_id",currentUser.id)
     : await query.delete().eq("id",id);
   if(error){friendStatus("Could not update request: "+errorText(error));button.disabled=false;return;}
   friendStatus(action==="accept"?"Friend request accepted!":"Request updated.");
