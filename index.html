@@ -372,18 +372,18 @@ async function loadFriends(){
   const requests=$("friendRequests"),list=$("friendsList");
   requests.textContent="Loading...";list.textContent="Loading...";
   const me=currentUser.id;
-  const {data,error}=await supabase.from("friendships")
-    .select("id,requester_id,recipient_id,status,created_at")
-    .or(`requester_id.eq.${me},recipient_id.eq.${me}`)
+  const {data,error}=await supabase.from("friend_requests")
+  .select("id,sender_id,receiver_id,status,created_at")
+    .or(`sender_id.eq.${me},receiver_id.eq.${me}`)
     .order("created_at",{ascending:false});
   requests.replaceChildren();list.replaceChildren();
   if(error){friendStatus("Could not load friends: "+errorText(error));return;}
   try{
-    const profiles=await getFriendProfiles((data||[]).map(f=>f.requester_id===me?f.recipient_id:f.requester_id));
+    const profiles=await getFriendProfiles((data||[]).map(f=>f.receiver_id===me?f.sender_id:f.receiver_id));
     let pending=0,accepted=0;
     for(const f of data||[]){
-      const incoming=f.recipient_id===me;
-      const other=incoming?f.requester_id:f.recipient_id;
+      const incoming=f.receiver_id===me;
+      const other=incoming?f.sender_id:f.receiver_id;
       const display=friendName(other,profiles);
       const card=node("div",undefined,"post");
       addText(card,"strong",display);
