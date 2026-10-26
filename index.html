@@ -91,6 +91,28 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 <hr class="divider"><h2>Friend requests</h2><div id="friendRequests"></div>
 <hr class="divider"><h2>My friends</h2><button id="refreshFriends" class="secondary">Refresh friends</button><div id="friendsList"></div>
 </section>
+<section id="tab-messages" class="card hidden">
+  <h2>Messages</h2>
+  <p>Chat privately with your New Wave friends.</p>
+  <label>Choose a friend
+    <select id="messageFriend">
+      <option value="">Select a friend</option>
+    </select>
+  </label>
+  <button id="openConversation" type="button">
+    Open conversation
+  </button>
+  <p id="messageStatus"></p>
+  <div id="messageHistory"></div>
+  <form id="messageForm">
+    <label>Your message
+      <textarea id="messageText" maxlength="2000"
+        placeholder="Write a message..."
+        required></textarea>
+    </label>
+    <button type="submit">Send message</button>
+  </form>
+</section>
 </section>
 </main>
 <footer><h2>Find Your Sound</h2><p>Create. Share. Collaborate.</p></footer>
