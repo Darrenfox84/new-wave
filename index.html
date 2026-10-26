@@ -54,7 +54,7 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 <div class="card"><h2>Artist dashboard</h2><p>Signed in as <strong id="userEmail"></strong></p>
 <div class="tabs">
 <button class="active" data-tab="discover">Discover</button><button data-tab="music">My music</button>
-<button data-tab="profile">My profile</button><button data-tab="collab">Collaborate</button>
+<button data-tab="profile">My profile</button><button data-tab="collab">Collaborate</button><button data-tab="friends">Friends</button>
 </div></div>
 <section id="tab-discover" class="card"><h2>Discover music</h2><button id="refreshFeed" class="secondary">Refresh feed</button><div id="feed"></div></section>
 <section id="tab-artist" class="card hidden"><button id="backDiscover" class="secondary artist-back">← Back to Discover</button><div id="artistDetails"></div><h2>Public tracks</h2><div id="artistTracks"></div></section>
@@ -84,6 +84,13 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 <button type="submit">Post collaboration</button></form><p id="collabMessage"></p>
 <hr class="divider"><h2>Open collaboration requests</h2><button id="refreshCollabs" class="secondary">Refresh</button><div id="collabs"></div>
 </section>
+<section id="tab-friends" class="card hidden"><h2>Friends</h2>
+<p>Connect with artists you want to work with again.</p>
+<form id="friendSearchForm"><label>Find an artist by username<input id="friendUsername" maxlength="30" placeholder="artist_name" required></label><button type="submit">Find artist</button></form>
+<div id="friendSearchResult"></div><p id="friendStatus" role="status"></p>
+<hr class="divider"><h2>Friend requests</h2><div id="friendRequests"></div>
+<hr class="divider"><h2>My friends</h2><button id="refreshFriends" class="secondary">Refresh friends</button><div id="friendsList"></div>
+</section>
 </section>
 </main>
 <footer><h2>Find Your Sound</h2><p>Create. Share. Collaborate.</p></footer>
@@ -112,11 +119,11 @@ function setUser(user){
   $("signupBox").classList.add("hidden");
   $("loginBox").classList.add("hidden");
   $("userEmail").textContent=user?.email||"";
-  if(user&&changed){loadTracks();loadFeed();loadProfile();loadCollabs();}
+  if(user&&changed){loadTracks();loadFeed();loadProfile();loadCollabs();loadFriends();}
 }
 function showTab(tab){
   for(const b of document.querySelectorAll("[data-tab]")) b.classList.toggle("active",b.dataset.tab===tab);
-  for(const name of ["discover","music","profile","collab","artist"]) $("tab-"+name).classList.toggle("hidden",name!==tab);
+  for(const name of ["discover","music","profile","collab","friends","artist"]) $("tab-"+name).classList.toggle("hidden",name!==tab);
 }
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 $("signupForm").onsubmit=async e=>{
@@ -347,6 +354,115 @@ async function loadCollabs(){
   });
 }
 $("refreshCollabs").onclick=loadCollabs;
+
+// Friends: requests are only visible to the sender and recipient through RLS.
+const friendStatus = text => $("friendStatus").textContent=text;
+async function getFriendProfiles(ids){
+  if(!ids.length)return new Map();
+  const {data,error}=await supabase.from("profiles").select("id,username,display_name").in("id",[...new Set(ids)]);
+  if(error)throw error;
+  return new Map((data||[]).map(p=>[p.id,p]));
+}
+function friendName(id,profiles){
+  const p=profiles.get(id);
+  return p?.display_name||p?.username||"Artist";
+}
+async function loadFriends(){
+  if(!currentUser)return;
+  const requests=$("friendRequests"),list=$("friendsList");
+  requests.textContent="Loading...";list.textContent="Loading...";
+  const me=currentUser.id;
+  const {data,error}=await supabase.from("friendships")
+    .select("id,requester_id,recipient_id,status,created_at")
+    .or(`requester_id.eq.${me},recipient_id.eq.${me}`)
+    .order("created_at",{ascending:false});
+  requests.replaceChildren();list.replaceChildren();
+  if(error){friendStatus("Could not load friends: "+errorText(error));return;}
+  try{
+    const profiles=await getFriendProfiles((data||[]).map(f=>f.requester_id===me?f.recipient_id:f.requester_id));
+    let pending=0,accepted=0;
+    for(const f of data||[]){
+      const incoming=f.recipient_id===me;
+      const other=incoming?f.requester_id:f.recipient_id;
+      const display=friendName(other,profiles);
+      const card=node("div",undefined,"post");
+      addText(card,"strong",display);
+      const username=profiles.get(other)?.username;
+      if(username)addText(card,"p","@"+username,"small");
+      const actions=node("div",undefined,"inline");
+      if(f.status==="accepted"){
+        accepted++;
+        const remove=node("button","Remove friend","secondary");
+        remove.onclick=()=>changeFriend(f.id,"remove",remove);
+        actions.append(remove);card.append(actions);list.append(card);
+      }else if(f.status==="pending"){
+        pending++;
+        if(incoming){
+          const accept=node("button","Accept");
+          const decline=node("button","Decline","secondary");
+          accept.onclick=()=>changeFriend(f.id,"accept",accept);
+          decline.onclick=()=>changeFriend(f.id,"remove",decline);
+          actions.append(accept,decline);
+        }else{
+          addText(card,"p","Request sent — awaiting reply","small");
+          const cancel=node("button","Cancel request","secondary");
+          cancel.onclick=()=>changeFriend(f.id,"remove",cancel);
+          actions.append(cancel);
+        }
+        card.append(actions);requests.append(card);
+      }
+    }
+    if(!pending)addText(requests,"p","No pending requests.","small");
+    if(!accepted)addText(list,"p","No friends yet. Search for an artist above.","small");
+  }catch(err){friendStatus("Could not load artist names: "+errorText(err));}
+}
+async function changeFriend(id,action,button){
+  if(!currentUser)return;
+  button.disabled=true;
+  const query=supabase.from("friendships");
+  const {error}=action==="accept"
+    ? await query.update({status:"accepted"}).eq("id",id).eq("recipient_id",currentUser.id)
+    : await query.delete().eq("id",id);
+  if(error){friendStatus("Could not update request: "+errorText(error));button.disabled=false;return;}
+  friendStatus(action==="accept"?"Friend request accepted!":"Request updated.");
+  await loadFriends();
+}
+$("friendSearchForm").onsubmit=async e=>{
+  e.preventDefault();
+  const button=e.submitter,username=$("friendUsername").value.trim();
+  const target=$("friendSearchResult");target.replaceChildren();friendStatus("");
+  if(!/^[A-Za-z0-9_]{3,30}$/.test(username))return friendStatus("Enter a valid username.");
+  button.disabled=true;
+  try{
+    const {data:profile,error}=await supabase.from("profiles")
+      .select("id,username,display_name").ilike("username",username).limit(1).maybeSingle();
+    if(error)throw error;
+    if(!profile){friendStatus("No artist found with that username.");return;}
+    if(profile.id===currentUser.id){friendStatus("That's your own profile.");return;}
+    const {data:existing,error:existingError}=await supabase.from("friendships")
+      .select("id,status").or(`and(requester_id.eq.${currentUser.id},recipient_id.eq.${profile.id}),and(requester_id.eq.${profile.id},recipient_id.eq.${currentUser.id})`).limit(1);
+    if(existingError)throw existingError;
+    const card=node("div",undefined,"post");
+    addText(card,"h3",profile.display_name||profile.username);
+    addText(card,"p","@"+profile.username,"small");
+    if(existing?.length){addText(card,"p",existing[0].status==="accepted"?"Already friends":"A friend request already exists.");}
+    else{
+      const send=node("button","Send friend request");
+      send.onclick=async()=>{
+        send.disabled=true;
+        const {error:sendError}=await supabase.from("friendships").insert({requester_id:currentUser.id,recipient_id:profile.id});
+        if(sendError){friendStatus("Could not send request: "+errorText(sendError));send.disabled=false;return;}
+        friendStatus("Friend request sent!");send.textContent="Request sent";
+        await loadFriends();
+      };
+      card.append(send);
+    }
+    target.append(card);
+  }catch(err){friendStatus("Search failed: "+errorText(err));}
+  finally{button.disabled=false;}
+};
+$("refreshFriends").onclick=loadFriends;
+
 try{
   const {data,error}=await supabase.auth.getSession();
   if(error)throw error;
