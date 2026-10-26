@@ -94,8 +94,8 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 <footer><h2>Find Your Sound</h2><p>Create. Share. Collaborate.</p></footer>
 <script type="module">
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-const supabaseUrl = "__SUPABASE_URL__";
-const supabaseKey = "__SUPABASE_KEY__";
+const supabaseUrl = "https://ppxtmhkbyzsbgwhkqlgg.supabase.co";
+const supabaseKey = "sb_publishable_6h2qstLk62ZBrxhO0ozIHw_Fih1dOh6";
 const supabase = createClient(supabaseUrl,supabaseKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $ = id => document.getElementById(id);
 let currentUser = null;
