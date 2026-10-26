@@ -439,7 +439,7 @@ $("friendSearchForm").onsubmit=async e=>{
     if(error)throw error;
     if(!profile){friendStatus("No artist found with that username.");return;}
     if(profile.id===currentUser.id){friendStatus("That's your own profile.");return;}
-    const {data:existing,error:existingError}=await supabase.from("friendships")
+    const {data:existing,error:existingError}=await supabase.from("friend_requests")
       .select("id,status").or(`and(requester_id.eq.${currentUser.id},recipient_id.eq.${profile.id}),and(requester_id.eq.${profile.id},recipient_id.eq.${currentUser.id})`).limit(1);
     if(existingError)throw existingError;
     const card=node("div",undefined,"post");
