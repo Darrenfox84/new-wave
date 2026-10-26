@@ -34,7 +34,24 @@ $("signupForm").addEventListener("submit",async e=>{e.preventDefault();const but
 $("loginForm").addEventListener("submit",async e=>{e.preventDefault();const button=e.target.querySelector("button");button.disabled=true;showMessage("Logging in...");try{const {data,error}=await supabase.auth.signInWithPassword({email:$("loginEmail").value.trim(),password:$("loginPassword").value});if(error)throw error;renderUser(data.user);showMessage("Welcome back!");await loadTracks();}catch(error){showMessage("Login failed: "+errorText(error));}finally{button.disabled=false;}});
 $("logout").addEventListener("click",async()=>{const {error}=await supabase.auth.signOut();if(error){showMessage("Logout failed: "+errorText(error));}else{renderUser(null);showMessage("You have logged out.");}});
 supabase.auth.onAuthStateChange((_event,session)=>{renderUser(session?.user??null);});
-async function loadTracks(){if(!currentUser)return;const list=$("myTracks");list.textContent="Loading your tracks...";try{const {data,error}=await supabase.from("tracks").select("id,title,created_at").eq("user_id",currentUser.id).order("created_at",{ascending:false}).limit(30);if(error)throw error;list.replaceChildren();if(!data?.length){const p=document.createElement("p");p.textContent="You haven't uploaded any tracks yet.";list.append(p);return;}for(const track of data){const item=document.createElement("div");item.className="track-item";const strong=document.createElement("strong");strong.textContent=track.title;item.append(strong);list.append(item);}}catch(error){list.textContent="Could not load tracks: "+errorText(error);}}
+async function loadTracks(){if(!currentUser)return;const list=$("myTracks");list.textContent="Loading your tracks...";try{const {data,error}=await supabase.from("tracks").select("id,title,created_at,audio_path").eq("user_id",currentUser.id).order("created_at",{ascending:false}).limit(30);if(error)throw error;list.replaceChildren();if(!data?.length){const p=document.createElement("p");p.textContent="You haven't uploaded any tracks yet.";list.append(p);return;}for(const track of data){const item=document.createElement("div");item.className="track-item";const strong=document.createElement("strong");strong.textContent=track.title;item.append(strong);
+const audio = document.createElement("audio");
+audio.controls = true;
+audio.preload = "none";
+audio.style.width = "100%";
+const {data: signed, error: signError} =
+  await supabase.storage
+    .from("Tracks")
+    .createSignedUrl(track.audio_path, 3600);
+if (!signError && signed?.signedUrl) {
+  audio.src = signed.signedUrl;
+  item.append(audio);
+} else{
+  const note = document.createElement("p");
+  note.textContent = "Audio unavailable";
+  item.append(note);
+}
+list.append(item);}catch(error){list.textContent="Could not load tracks: "+errorText(error);}}
 $("refreshTracks").addEventListener("click",loadTracks);
 const fileTypes={mp3:"audio/mpeg",wav:"audio/wav",m4a:"audio/mp4"};
 $("uploadTrack").addEventListener("click",async()=>{const message=$("uploadMessage");const button=$("uploadTrack");const file=$("audioFile").files[0];const title=$("trackTitle").value.trim();if(!file||!title){message.textContent="Choose an audio file and enter a song title.";return;}const extension=file.name.split(".").pop()?.toLowerCase();if(!Object.hasOwn(fileTypes,extension)){message.textContent="Please choose an MP3, WAV or M4A file.";return;}if(file.size>20*1024*1024){message.textContent="Maximum file size is 20 MB.";return;}if(file.size===0){message.textContent="The selected file is empty.";return;}button.disabled=true;message.textContent="Checking your login...";let uploadedPath=null;try{const {data:{user},error:authError}=await supabase.auth.getUser();if(authError)throw new Error("Authentication check failed: "+errorText(authError));if(!user)throw new Error("Your login has expired. Please log out and log back in.");const fileName=`${user.id}/${crypto.randomUUID()}.${extension}`;message.textContent="Uploading your music...";const {error:uploadError}=await supabase.storage.from("Tracks").upload(fileName,file,{contentType:fileTypes[extension],upsert:false});if(uploadError)throw new Error("Storage upload failed: "+errorText(uploadError));uploadedPath=fileName;message.textContent="Saving your track details...";const {error:databaseError}=await supabase.from("tracks").insert({user_id:user.id,title,audio_path:fileName,is_public:true});if(databaseError)throw new Error("Database save failed: "+errorText(databaseError));uploadedPath=null;message.textContent="Your track was uploaded successfully!";$("trackTitle").value="";$("audioFile").value="";await loadTracks();}catch(error){let extra="";if(uploadedPath){const {error:cleanupError}=await supabase.storage.from("Tracks").remove([uploadedPath]);if(cleanupError)extra=" Cleanup also failed; check Storage for an orphaned file.";}message.textContent="Upload failed: "+errorText(error)+extra;}finally{button.disabled=false;}});
