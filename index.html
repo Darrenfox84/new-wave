@@ -419,7 +419,7 @@ async function loadFriends(){
 async function changeFriend(id,action,button){
   if(!currentUser)return;
   button.disabled=true;
-  const query=supabase.from("friendships");
+  const query=supabase.from("friend_requests");
   const {error}=action==="accept"
     ? await query.update({status:"accepted"}).eq("id",id).eq("recipient_id",currentUser.id)
     : await query.delete().eq("id",id);
@@ -440,7 +440,7 @@ $("friendSearchForm").onsubmit=async e=>{
     if(!profile){friendStatus("No artist found with that username.");return;}
     if(profile.id===currentUser.id){friendStatus("That's your own profile.");return;}
     const {data:existing,error:existingError}=await supabase.from("friend_requests")
-      .select("id,status").or(`and(requester_id.eq.${currentUser.id},recipient_id.eq.${profile.id}),and(requester_id.eq.${profile.id},recipient_id.eq.${currentUser.id})`).limit(1);
+      .select("id,status").or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${profile.id}),and(sender_id.eq.${profile.id},receiver_id.eq.${currentUser.id})`).limit(1);
     if(existingError)throw existingError;
     const card=node("div",undefined,"post");
     addText(card,"h3",profile.display_name||profile.username);
@@ -450,7 +450,7 @@ $("friendSearchForm").onsubmit=async e=>{
       const send=node("button","Send friend request");
       send.onclick=async()=>{
         send.disabled=true;
-        const {error:sendError}=await supabase.from("friendships").insert({requester_id:currentUser.id,recipient_id:profile.id});
+        const {error:sendError}=await supabase.from("friend_requests").insert({requester_id:currentUser.id,receiver_id:profile.id});
         if(sendError){friendStatus("Could not send request: "+errorText(sendError));send.disabled=false;return;}
         friendStatus("Friend request sent!");send.textContent="Request sent";
         await loadFriends();
