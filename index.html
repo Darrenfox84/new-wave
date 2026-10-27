@@ -386,7 +386,7 @@ $("uploadTrack").onclick=async()=>{
 };
 async function loadProfile(){
   if(!currentUser)return;
-  const {data,error}=await supabase.from("profiles").select("username,display_name,bio").eq("id",currentUser.id).maybeSingle();
+  const {data,error}=await supabase.from("profiles").select("username,display_name,bio,avatar_url").eq("id",currentUser.id).maybeSingle();
   if(error){$("profileMessage").textContent="Could not load profile: "+errorText(error);return;}
   $("username").value=data?.username||"";
   $("displayName").value=data?.display_name||"";
