@@ -70,12 +70,20 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 <hr class="divider"><h2>My uploaded tracks</h2><button id="refreshTracks" class="secondary">Refresh</button><div id="myTracks"></div>
 </section>
 <section id="tab-profile" class="card hidden"><h2>My artist profile</h2>
-<form id="profileForm">
+<div>
+  <h3>Profile picture</h3>
+  <img id="avatarPreview" alt="Artist profile picture"
+       style="width:120px;height:120px;object-fit:cover;border-radius:50%;display:none;">
+  <input type="file" id="avatarFile" accept="image/*">
+  <button type="button" id="uploadAvatar">Upload profile picture</button>
+  <p id="avatarStatus"></p>
+</div>
+  <form id="profileForm">
 <label>Username<input id="username" maxlength="30" pattern="[A-Za-z0-9_]{3,30}" placeholder="artist_name" required></label>
 <label>Display name<input id="displayName" maxlength="100" placeholder="Your artist name"></label>
 <label>Bio<textarea id="bio" maxlength="500" placeholder="What kind of music do you make?"></textarea></label>
 <button type="submit">Save profile</button></form><p id="profileMessage"></p>
-</section>
+</form></section>
 <section id="tab-collab" class="card hidden"><h2>Find collaborators</h2>
 <form id="collabForm">
 <label>Project title<input id="collabTitle" maxlength="200" required placeholder="Looking for a guitarist"></label>
