@@ -132,6 +132,49 @@ const supabaseKey = "sb_publishable_6h2qstLk62ZBrxhO0ozIHw_Fih1dOh6";
 const supabase = createClient(supabaseUrl,supabaseKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $ = id => document.getElementById(id);
 let currentUser = null;
+  $("uploadAvatar").onclick = async () => {
+  if (!currentUser) return;
+
+  const file = $("avatarFile").files[0];
+  if (!file) {
+    $("avatarStatus").textContent = "Choose a picture first.";
+    return;
+  }
+
+  if (!file.type.startsWith("image/") || file.size > 2 * 1024 * 1024) {
+    $("avatarStatus").textContent = "Choose an image under 2 MB.";
+    return;
+  }
+
+  $("avatarStatus").textContent = "Uploading...";
+
+  const extension = file.name.split(".").pop().toLowerCase();
+  const path = `${currentUser.id}/profile.${extension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(path, file, { upsert: true });
+
+  if (uploadError) {
+    $("avatarStatus").textContent = uploadError.message;
+    return;
+  }
+
+  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .update({ avatar_url: data.publicUrl })
+    .eq("id", currentUser.id);
+
+  if (profileError) {
+    $("avatarStatus").textContent = profileError.message;
+    return;
+  }
+
+  $("avatarPreview").src = data.publicUrl + "?t=" + Date.now();
+  $("avatarStatus").textContent = "Profile picture uploaded!";
+};
 const errorText = e => e?.message || String(e || "Unknown error");
 const message = text => $("message").textContent = text;
 function showForm(which){
