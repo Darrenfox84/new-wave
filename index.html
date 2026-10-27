@@ -391,6 +391,12 @@ async function loadProfile(){
   $("username").value=data?.username||"";
   $("displayName").value=data?.display_name||"";
   $("bio").value=data?.bio||"";
+if (data?.avatar_url) {
+  $("avatarPreview").src = data.avatar_url;
+  $("avatarPreview").style.display = "block";
+} else {
+  $("avatarPreview").style.display = "none";
+}
 }
 $("profileForm").onsubmit=async e=>{
   e.preventDefault();const b=e.submitter;b.disabled=true;
