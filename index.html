@@ -146,7 +146,7 @@ function setUser(user){
 }
 function showTab(tab){
   for(const b of document.querySelectorAll("[data-tab]")) b.classList.toggle("active",b.dataset.tab===tab);
-  for(const name of ["discover","music","profile","collab","friends","artist"]) $("tab-"+name).classList.toggle("hidden",name!==tab);
+  for(const name of ["discover","music","profile","collab","friends","messages","artist"]) $("tab-"+name).classList.toggle("hidden",name!==tab);
 }
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 $("signupForm").onsubmit=async e=>{
