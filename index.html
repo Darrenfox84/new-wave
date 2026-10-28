@@ -318,11 +318,23 @@ async function openArtist(userId){
   const details=$("artistDetails"),target=$("artistTracks");
   details.textContent="Loading artist...";target.replaceChildren();
   const [profileResult,tracksResult]=await Promise.all([
-    supabase.from("profiles").select("username,display_name,bio").eq("id",userId).maybeSingle(),
+    supabase.from("profiles").select("username,display_name,bio,avatar_url").eq("id",userId).maybeSingle(),
     supabase.from("tracks").select("id,title,genre,description,audio_path,created_at,user_id").eq("user_id",userId).eq("is_public",true).order("created_at",{ascending:false}).limit(50)
   ]);
   details.replaceChildren();
   const profile=profileResult.data;
+  if (profile?.avatar_url) {
+  const avatar = document.createElement("img");
+  avatar.src = profile.avatar_url;
+  avatar.alt = "Artist profile picture";
+  avatar.style.width = "120px";
+  avatar.style.height = "120px";
+  avatar.style.objectFit = "cover";
+  avatar.style.borderRadius = "50%";
+  avatar.style.display = "block";
+  avatar.style.marginBottom = "15px";
+  details.appendChild(avatar);
+  }
   addText(details,"h2",profile?.display_name||profile?.username||"New Wave artist");
   if(profile?.username)addText(details,"p","@"+profile.username,"small");
   if(profile?.bio)addText(details,"p",profile.bio);
