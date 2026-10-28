@@ -403,12 +403,13 @@ $("uploadTrack").onclick=async()=>{
 };
 async function loadProfile(){
   if(!currentUser)return;
-  const {data,error}=await supabase.from("profiles").select("username,display_name,bio,avatar_url").eq("id",currentUser.id).maybeSingle();
+  const {data,error}=await supabase.from("profiles").select("username,display_name,bio,avatar_url,genres").eq("id",currentUser.id).maybeSingle();
   if(error){$("profileMessage").textContent="Could not load profile: "+errorText(error);return;}
   $("username").value=data?.username||"";
   $("displayName").value=data?.display_name||"";
   $("bio").value=data?.bio||"";
-if (data?.avatar_url) {
+$("genres").value=data?.genres||"";
+  if (data?.avatar_url) {
   $("avatarPreview").src = data.avatar_url;
   $("avatarPreview").style.display = "block";
 } else {
@@ -420,7 +421,7 @@ $("profileForm").onsubmit=async e=>{
   const username=$("username").value.trim();
   if(!/^[A-Za-z0-9_]{3,30}$/.test(username)){$("profileMessage").textContent="Username must be 3–30 letters, numbers or underscores.";b.disabled=false;return;}
   const {error}=await supabase.from("profiles").upsert({
-    id:currentUser.id,username,display_name:$("displayName").value.trim(),bio:$("bio").value.trim()
+    id:currentUser.id,username,display_name:$("displayName").value.trim(),bio:$("bio").value.trim(),genres:$("genres").value.trim()
   },{onConflict:"id"});
   $("profileMessage").textContent=error?"Save failed: "+errorText(error):"Profile saved!";
   b.disabled=false;
