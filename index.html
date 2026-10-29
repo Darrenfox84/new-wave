@@ -58,7 +58,37 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 <button data-tab="messages">Messages</button>
 </div></div>
 <section id="tab-discover" class="card"><h2>Discover music</h2><button id="refreshFeed" class="secondary">Refresh feed</button><div id="feed"></div></section>
-<section id="tab-artist" class="card hidden"><button id="backDiscover" class="secondary artist-back">← Back to Discover</button><div id="artistDetails"></div><h2>Public tracks</h2><div id="artistTracks"></div></section>
+<section class="card" id="rideTheWave">
+  <h2>🌊 Ride the Wave</h2>
+
+  <p>Help keep independent music free.</p>
+
+  <p>
+    New Wave is completely free for artists.
+    If you'd like to support the platform,
+    you can contribute whatever amount you choose.
+    Every contribution is appreciated.
+  </p>
+
+  <label>
+    Your donation amount (£)
+    <input
+      type="number"
+      id="donationAmount"
+      min="0.10"
+      step="0.01"
+      placeholder="Enter your amount">
+  </label>
+
+  <p class="small">
+    Completely voluntary. No memberships,
+    no obligations and no special treatment.
+  </p>
+
+  <p class="small">
+    Payments are not available yet.
+  </p>
+</section><section id="tab-artist" class="card hidden"><button id="backDiscover" class="secondary artist-back">← Back to Discover</button><div id="artistDetails"></div><h2>Public tracks</h2><div id="artistTracks"></div></section>
 <section id="tab-music" class="card hidden"><h2>Upload your music</h2>
 <label>Song title<input id="trackTitle" maxlength="200" placeholder="Your song title"></label>
 <label>Genre<input id="trackGenre" maxlength="80" placeholder="Rock, electronic, hip-hop..."></label>
