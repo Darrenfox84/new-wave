@@ -327,7 +327,7 @@ async function openArtist(userId){
   const details=$("artistDetails"),target=$("artistTracks");
   details.textContent="Loading artist...";target.replaceChildren();
   const [profileResult,tracksResult]=await Promise.all([
-    supabase.from("profiles").select("username,display_name,bio,avatar_url,genres").eq("id",userId).maybeSingle(),
+    supabase.from("profiles").select("username,display_name,bio,avatar_url,genres,artist_links").eq("id",userId).maybeSingle(),
     supabase.from("tracks").select("id,title,genre,description,audio_path,created_at,user_id").eq("user_id",userId).eq("is_public",true).order("created_at",{ascending:false}).limit(50)
   ]);
   details.replaceChildren();
@@ -351,7 +351,26 @@ async function openArtist(userId){
 if(profile?.genres){
   addText(details,"p","Genres: "+profile.genres);
 }
+if (profile?.artist_links) {
+  addText(details, "h3", "Artist Links");
 
+  const links = profile.artist_links.split("\n");
+
+  for (const link of links) {
+    const url = link.trim();
+    if (!/^https?:\/\/\S+$/i.test(url)) continue;
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.textContent = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.style.display = "block";
+    a.style.marginBottom = "8px";
+
+    details.appendChild(a);
+  }
+}
   if(profileResult.error)addText(details,"p","Artist bio is unavailable; public tracks may still be visible.","small");
   if(tracksResult.error){addText(target,"p","Could not load artist tracks: "+errorText(tracksResult.error));return;}
   if(!tracksResult.data?.length){addText(target,"p","No public tracks from this artist yet.");return;}
