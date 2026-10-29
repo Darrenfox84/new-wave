@@ -58,7 +58,7 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 <button data-tab="messages">Messages</button>
 </div></div>
 <section id="tab-discover" class="card"><h2>Discover music</h2><button id="refreshFeed" class="secondary">Refresh feed</button><div id="feed"></div></section>
-<section class="card" id="rideTheWave">
+<section class="card" id="rideTheWave" data-home-only="true">
   <h2>🌊 Ride the Wave</h2>
 
   <p>Help keep independent music free.</p>
@@ -238,6 +238,7 @@ function setUser(user){
 function showTab(tab){
   for(const b of document.querySelectorAll("[data-tab]")) b.classList.toggle("active",b.dataset.tab===tab);
   for(const name of ["discover","music","profile","collab","friends","messages","artist"]) $("tab-"+name).classList.toggle("hidden",name!==tab);
+$("rideTheWave").classList.toggle("hidden", tab !== "discover");
 }
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 $("signupForm").onsubmit=async e=>{
