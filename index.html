@@ -418,6 +418,7 @@ async function loadProfile(){
   $("displayName").value=data?.display_name||"";
   $("bio").value=data?.bio||"";
 $("genres").value=data?.genres||"";
+  $("artistLinks").value=data?.artist_links||"";
   if (data?.avatar_url) {
   $("avatarPreview").src = data.avatar_url;
   $("avatarPreview").style.display = "block";
