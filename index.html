@@ -323,7 +323,7 @@ async function openArtist(userId){
   const details=$("artistDetails"),target=$("artistTracks");
   details.textContent="Loading artist...";target.replaceChildren();
   const [profileResult,tracksResult]=await Promise.all([
-    supabase.from("profiles").select("username,display_name,bio,avatar_url").eq("id",userId).maybeSingle(),
+    supabase.from("profiles").select("username,display_name,bio,avatar_url,genres").eq("id",userId).maybeSingle(),
     supabase.from("tracks").select("id,title,genre,description,audio_path,created_at,user_id").eq("user_id",userId).eq("is_public",true).order("created_at",{ascending:false}).limit(50)
   ]);
   details.replaceChildren();
@@ -343,6 +343,11 @@ async function openArtist(userId){
   addText(details,"h2",profile?.display_name||profile?.username||"New Wave artist");
   if(profile?.username)addText(details,"p","@"+profile.username,"small");
   if(profile?.bio)addText(details,"p",profile.bio);
+ 
+if(profile?.genres){
+  addText(details,"p","Genres: "+profile.genres);
+}
+
   if(profileResult.error)addText(details,"p","Artist bio is unavailable; public tracks may still be visible.","small");
   if(tracksResult.error){addText(target,"p","Could not load artist tracks: "+errorText(tracksResult.error));return;}
   if(!tracksResult.data?.length){addText(target,"p","No public tracks from this artist yet.");return;}
