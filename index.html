@@ -821,7 +821,25 @@ $("submitReport").onclick = async () => {
     return;
   }
 
-  alert("Report form validated. Database connection is next.");
+  
+const { error } = await supabase
+  .from("content_reports")
+  .insert({
+    reporter_id: currentUser.id,
+    reason: reason,
+    details: details
+  });
+
+if (error) {
+  alert("Could not submit report: " + error.message);
+  return;
+}
+
+alert("Report submitted successfully.");
+$("reportDialog").close();
+$("reportReason").value = "";
+$("reportDetails").value = "";
+
 };
 </script>
 </body>
