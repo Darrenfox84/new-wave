@@ -310,6 +310,14 @@ function trackCard(track,withSocial=false){
       card.insertBefore(artistButton,card.children[1]||null);
       artistButton.dataset.artistId=track.user_id;
     }
+    const reportButton = node("button", "⚑ Report content", "secondary");
+reportButton.type = "button";
+
+reportButton.onclick = () => {
+  message("Reporting will be available soon. Lawful artistic expression is protected under the New Wave Artist Freedom Charter.");
+};
+
+card.append(reportButton);
     const row=node("div",undefined,"inline");
     const like=node("button","♥ Like","secondary");
     const countLabel=node("span","Loading likes...","small");
