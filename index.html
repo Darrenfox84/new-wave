@@ -535,9 +535,9 @@ $("profileForm").onsubmit=async e=>{
   e.preventDefault();const b=e.submitter;b.disabled=true;
   const username=$("username").value.trim();
   if(!/^[A-Za-z0-9_]{3,30}$/.test(username)){$("profileMessage").textContent="Username must be 3–30 letters, numbers or underscores.";b.disabled=false;return;}
-  const {error}=await supabase.from("profiles").upsert({
-    id:currentUser.id,username,display_name:$("displayName").value.trim(),bio:$("bio").value.trim(),genres:$("genres").value.trim(),artist_links:$("artistLinks").value.trim()
-  },{onConflict:"id"});
+  supabase.from("profiles").update({
+  username,display_name:$("displayName").value.trim(),bio:$("bio").value.trim(),genres:$("genres").value.trim(),artist_links:$("artistLinks").value.trim()
+  }).eq("id",currentUser.id);
   $("profileMessage").textContent=error?"Save failed: "+errorText(error):"Profile saved!";
   b.disabled=false;
 };
