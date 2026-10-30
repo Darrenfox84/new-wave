@@ -807,6 +807,22 @@ $("messageFriend").addEventListener("focus", loadMessageFriends);
   if(error)throw error;
   setUser(data.session?.user??null);
 }catch(err){message("Connection failed: "+errorText(err));}
+$("submitReport").onclick = async () => {
+  if (!currentUser) {
+    message("Please log in to submit a report.");
+    return;
+  }
+
+  const reason = $("reportReason").value;
+  const details = $("reportDetails").value.trim();
+
+  if (!reason || !details) {
+    alert("Please select a reason and explain your concern.");
+    return;
+  }
+
+  alert("Report form validated. Database connection is next.");
+};
 </script>
 </body>
   </html>
