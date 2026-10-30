@@ -341,9 +341,9 @@ function trackCard(track,withSocial=false){
 reportButton.type = "button";
 
 reportButton.onclick = () => {
+  $("reportDialog").dataset.trackId = track.id;
   $("reportDialog").showModal();
 };
-
 card.append(reportButton);
     const row=node("div",undefined,"inline");
     const like=node("button","♥ Like","secondary");
@@ -830,7 +830,7 @@ const { error } = await supabase
   .from("content_reports")
   .insert({
     reporter_id: currentUser.id,
-    reason: reason,
+    track_id: $("reportDialog").dataset.trackId,reason: reason,
     details: details
   });
 
