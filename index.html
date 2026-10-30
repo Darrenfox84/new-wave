@@ -63,7 +63,30 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 </div>
 <button type="submit">Sign up</button></form>
 </section>
-<section id="loginBox" class="card auth hidden">
+<dialog id="reportDialog" style="width:90%;max-width:450px;background:#191629;color:white;border:1px solid #554b78;border-radius:16px;padding:24px;">
+  <h2>⚑ Report Content</h2>
+
+  <p>New Wave protects lawful artistic expression. Disagreement or offence alone is not grounds for removal.</p>
+
+  <label for="reportReason">Reason for reporting</label>
+  <select id="reportReason" required>
+    <option value="">Select a reason</option>
+    <option value="copyright">Copyright infringement</option>
+    <option value="threats">Credible threats or harassment</option>
+    <option value="illegal">Potentially illegal content</option>
+    <option value="privacy">Privacy violation</option>
+    <option value="other">Other specific policy concern</option>
+  </select>
+
+  <label for="reportDetails">Explain your concern</label>
+  <textarea id="reportDetails" rows="4" placeholder="Please provide specific details."></textarea>
+
+  <p class="small">Reports are reviewed individually. Submitting a report does not automatically remove content.</p>
+
+  <button type="button" id="submitReport">Submit Report</button>
+  <button type="button" id="cancelReport" class="secondary">Cancel</button>
+</dialog>
+  <section id="loginBox" class="card auth hidden">
 <h2>Welcome back</h2>
 <form id="loginForm"><label>Email<input id="loginEmail" type="email" autocomplete="email" required></label>
 <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required></label>
@@ -314,7 +337,7 @@ function trackCard(track,withSocial=false){
 reportButton.type = "button";
 
 reportButton.onclick = () => {
-  message("Reporting will be available soon. Lawful artistic expression is protected under the New Wave Artist Freedom Charter.");
+  $("reportDialog").showModal();
 };
 
 card.append(reportButton);
