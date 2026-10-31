@@ -107,6 +107,9 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
   <section id="tab-admin" class="card hidden">
   <h2>🛡️ Moderation Dashboard</h2>
   <p>Review reports and protect the New Wave community.</p>
+    
+<button type="button" id="refreshAdminReports">Refresh Reports</button>
+
   <div id="adminReports">Reports will appear here.</div>
 </section>
 <section id="tab-discover" class="card"><h2>Discover music</h2><button id="refreshFeed" class="secondary">Refresh feed</button><div id="feed"></div></section>
@@ -870,6 +873,45 @@ $("reportReason").value = "";
 $("reportDetails").value = "";
 
 };
-</script>
+async function loadAdminReports() {
+  const container = $("adminReports");
+  container.textContent = "Loading reports...";
+
+  const { data, error } = await supabase
+    .from("content_reports")
+    .select("id, track_id, reason, details, status")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    container.textContent = "Could not load reports: " + error.message;
+    return;
+  }
+
+  container.replaceChildren();
+
+  if (!data.length) {
+    container.textContent = "No reports found.";
+    return;
+  }
+
+  data.forEach(report => {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const heading = document.createElement("h3");
+    heading.textContent = report.reason;
+
+    const details = document.createElement("p");
+    details.textContent = report.details || "No details provided.";
+
+    const status = document.createElement("p");
+    status.textContent = "Status: " + report.status;
+
+    card.append(heading, details, status);
+    container.append(card);
+  });
+}
+
+$("refreshAdminReports").onclick = loadAdminReports;</script>
 </body>
   </html>
