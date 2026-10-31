@@ -102,7 +102,13 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 <button class="active" data-tab="discover">Discover</button><button data-tab="music">My music</button>
 <button data-tab="profile">My profile</button><button data-tab="collab">Collaborate</button><button data-tab="friends">Friends</button>
 <button data-tab="messages">Messages</button>
+  <button type="button" data-tab="admin" id="adminTabButton" class="hidden">🛡️ Admin</button>
 </div></div>
+  <section id="tab-admin" class="card hidden">
+  <h2>🛡️ Moderation Dashboard</h2>
+  <p>Review reports and protect the New Wave community.</p>
+  <div id="adminReports">Reports will appear here.</div>
+</section>
 <section id="tab-discover" class="card"><h2>Discover music</h2><button id="refreshFeed" class="secondary">Refresh feed</button><div id="feed"></div></section>
 <section class="card" id="rideTheWave" data-home-only="true">
   <h2>🌊 Ride the Wave</h2>
@@ -273,6 +279,20 @@ $("showLogin").onclick=()=>showForm("login");
 function setUser(user){
   const changed=currentUser?.id!==user?.id;
   currentUser=user;
+  $("adminTabButton").classList.add("hidden");
+
+if (user) {
+  supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .single()
+    .then(({ data, error }) => {
+      if (!error && currentUser?.id === user.id && data?.is_admin === true) {
+        $("adminTabButton").classList.remove("hidden");
+      }
+    });
+}
   $("guestActions").classList.toggle("hidden",!!user);
   $("app").classList.toggle("hidden",!user);
   $("logout").classList.toggle("hidden",!user);
@@ -282,6 +302,9 @@ function setUser(user){
   if(user&&changed){loadTracks();loadFeed();loadProfile();loadCollabs();loadFriends();}
 }
 function showTab(tab){
+  if (tab === "admin" && $("adminTabButton").classList.contains("hidden")) {
+  return;
+}
   for(const b of document.querySelectorAll("[data-tab]")) b.classList.toggle("active",b.dataset.tab===tab);
   ["discover","music","profile","collab","friends","messages","artist","admin"]
 $("rideTheWave").classList.toggle("hidden", tab !== "discover");
