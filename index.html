@@ -306,7 +306,7 @@ function showTab(tab){
   return;
 }
   for(const b of document.querySelectorAll("[data-tab]")) b.classList.toggle("active",b.dataset.tab===tab);
-  ["discover","music","profile","collab","friends","messages","artist","admin"]
+  for (const name of ["discover","music","profile","collab","friends","messages","artist","admin"]) $("tab-"+name).classList.toggle("hidden",name!==tab);
 $("rideTheWave").classList.toggle("hidden", tab !== "discover");
 }
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
