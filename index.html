@@ -879,7 +879,7 @@ async function loadAdminReports() {
 
   const { data, error } = await supabase
     .from("content_reports")
-    .select("id, track_id, reason, details, status")
+    .select("id, track_id, reason, details, status, tracks(title)")
     .order("created_at", { ascending: false });
 
   if (error) {
