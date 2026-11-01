@@ -899,8 +899,8 @@ async function loadAdminReports() {
     card.className = "card";
 
     const heading = document.createElement("h3");
-    heading.textContent = report.reason;
-
+    
+heading.textContent = (report.tracks?.title || "Unknown track") + " — " + report.reason;
     const details = document.createElement("p");
     details.textContent = report.details || "No details provided.";
 
