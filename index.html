@@ -914,6 +914,7 @@ actions.className = "tabs";
   ["Dismiss", "dismissed"],
   ["Mark Action Taken", "action_taken"]
 ].forEach(([label, newStatus]) => {
+  if (["dismissed", "action_taken"].includes(report.status)) return;
   const button = document.createElement("button");
   button.type = "button";
   button.textContent = label;
