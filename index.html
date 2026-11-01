@@ -906,8 +906,37 @@ async function loadAdminReports() {
 
     const status = document.createElement("p");
     status.textContent = "Status: " + report.status;
+const actions = document.createElement("div");
+actions.className = "tabs";
 
-    card.append(heading, details, status);
+[
+  ["Start Review", "under_review"],
+  ["Dismiss", "dismissed"],
+  ["Mark Action Taken", "action_taken"]
+].forEach(([label, newStatus]) => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = label;
+
+  button.onclick = async () => {
+    if (!confirm(`Change report status to ${newStatus}?`)) return;
+
+    const { error } = await supabase
+      .from("content_reports")
+      .update({ status: newStatus })
+      .eq("id", report.id);
+
+    if (error) {
+      alert("Could not update report: " + error.message);
+      return;
+    }
+
+    await loadAdminReports();
+  };
+
+  actions.append(button);
+});
+    card.append(heading, details, status, actions);
     container.append(card);
   });
 }
