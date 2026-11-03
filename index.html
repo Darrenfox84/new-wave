@@ -922,6 +922,19 @@ actions.className = "tabs";
   button.onclick = async () => {
     if (!confirm(`Change report status to ${newStatus}?`)) return;
 
+let explanation = null;
+
+if (["dismissed", "action_taken"].includes(newStatus)) {
+  explanation = prompt(
+    "Explain your moderation decision:"
+  );
+
+  if (!explanation || !explanation.trim()) {
+    alert("A written explanation is required.");
+    return;
+  }
+}
+
     const { error } = await supabase
       .from("content_reports")
       .update({ status: newStatus })
@@ -931,7 +944,18 @@ actions.className = "tabs";
       alert("Could not update report: " + error.message);
       return;
     }
+if (explanation) {
+  const { error: reasonError } = await supabase
+    .from("moderation_history")
+    .update({ decision_reason: explanation.trim() })
+    .eq("report_id", report.id)
+    .eq("new_status", newStatus)
+    .is("decision_reason", null);
 
+  if (reasonError) {
+    alert("Report status changed, but the explanation could not be saved: " + reasonError.message);
+  }
+}
     await loadAdminReports();
   };
 
