@@ -321,7 +321,7 @@ function showTab(tab){
   for (const name of ["discover","music","profile","collab","friends","messages","artist","appeals","admin"]) $("tab-"+name).classList.toggle("hidden",name!==tab);
 $("rideTheWave").classList.toggle("hidden", tab !== "discover");
 }
-document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{showTab(b.dataset.tab);if(b.dataset.tab==="appeals")loadMyAppeals();});
 $("signupForm").onsubmit=async e=>{
   e.preventDefault();const b=e.submitter;b.disabled=true;message("Creating your account...");
   try{
@@ -975,6 +975,47 @@ if (explanation) {
   });
 }
 
-$("refreshAdminReports").onclick = loadAdminReports;</script>
+$("refreshAdminReports").onclick = loadAdminReports;
+async function loadMyAppeals() {
+  const container = $("myAppeals");
+  if (!container || !currentUser) return;
+
+  container.textContent = "Loading your appeals...";
+
+  const { data, error } = await supabase
+    .from("moderation_appeals")
+    .select("id, report_id, appeal_reason, status, decision_reason")
+    .eq("appellant_id", currentUser.id);
+
+  if (error) {
+    container.textContent = "Could not load appeals: " + error.message;
+    return;
+  }
+
+  container.replaceChildren();
+
+  if (!data || data.length === 0) {
+    container.textContent = "You have no appeals yet.";
+    return;
+  }
+
+  data.forEach(appeal => {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const heading = document.createElement("h3");
+    heading.textContent = "Appeal status: " + appeal.status;
+
+    const reason = document.createElement("p");
+    reason.textContent = appeal.appeal_reason;
+
+    const decision = document.createElement("p");
+    decision.textContent = appeal.decision_reason || "Awaiting review.";
+
+    card.append(heading, reason, decision);
+    container.append(card);
+  });
+}
+</script>
 </body>
   </html>
