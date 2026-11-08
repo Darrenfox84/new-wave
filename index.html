@@ -186,6 +186,19 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
   <h2>⚖️ My Appeals</h2>
   <p>Request a review of a moderation decision.</p>
   <div id="myAppeals"></div>
+<hr class="divider">
+<h3>Submit an Appeal</h3>
+<form id="appealForm">
+  <label>Report ID
+    <input id="appealReportId" type="text" required
+      placeholder="Enter the report ID">
+  </label>
+  <label>Why should this decision be reviewed?
+    <textarea id="appealReason" required
+      placeholder="Explain why you are appealing..."></textarea>
+  </label>
+  <button type="submit">Submit Appeal</button>
+</form>
 </section>
 
 <section id="tab-collab" class="card hidden"><h2>Find collaborators</h2>
