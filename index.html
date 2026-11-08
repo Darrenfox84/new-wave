@@ -1029,6 +1029,46 @@ async function loadMyAppeals() {
     container.append(card);
   });
 }
+  $("appealForm").onsubmit = async (e) => {
+  e.preventDefault();
+
+  if (!currentUser) {
+    alert("Please log in first.");
+    return;
+  }
+
+  const reportId = $("appealReportId").value.trim();
+  const reason = $("appealReason").value.trim();
+
+  if (!reportId || !reason) {
+    alert("Please complete both fields.");
+    return;
+  }
+
+  const button = e.submitter;
+  if (button) button.disabled = true;
+
+  try {
+    const { error } = await supabase
+      .from("moderation_appeals")
+      .insert({
+        report_id: reportId,
+        appellant_id: currentUser.id,
+        appeal_reason: reason
+      });
+
+    if (error) throw error;
+
+    alert("Your appeal has been submitted.");
+    $("appealForm").reset();
+    await loadMyAppeals();
+
+  } catch (err) {
+    alert("Could not submit appeal: " + err.message);
+  } finally {
+    if (button) button.disabled = false;
+  }
+};
 </script>
 </body>
   </html>
