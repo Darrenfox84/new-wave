@@ -192,7 +192,7 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 </label>
 
 <button type="submit">Save profile</button></form><p id="profileMessage"></p>
-</form></section>
+</section>
   
 <section id="tab-appeals" class="card hidden">
   <h2>⚖️ My Appeals</h2>
@@ -231,7 +231,7 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 </section>
 <section id="tab-messages" class="card hidden">
   <h2>Messages</h2>
-  <p>Chat privately with your New Wave friends.</p>
+  <p>Chat privately with your New Wave friends. Artist-controlled messaging preferences are planned; currently conversations are limited to accepted friends.</p>
   <label>Choose a friend
     <select id="messageFriend">
       <option value="">Select a friend</option>
@@ -316,7 +316,9 @@ $("showLogin").onclick=()=>showForm("login");
 function setUser(user){
   const changed=currentUser?.id!==user?.id;
   currentUser=user;
+  if (!user) { selectedMessageFriend = null; showTab("discover"); }
   $("adminTabButton").classList.add("hidden");
+  if (!user && !$("tab-admin").classList.contains("hidden")) showTab("discover");
 
 if (user) {
   supabase
@@ -346,7 +348,7 @@ function showTab(tab){
   for (const name of ["discover","music","profile","collab","friends","messages","artist","appeals","admin"]) $("tab-"+name).classList.toggle("hidden",name!==tab);
 $("rideTheWave").classList.toggle("hidden", tab !== "discover");
 }
-document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{showTab(b.dataset.tab);if(b.dataset.tab==="appeals")loadMyAppeals();});
+document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{showTab(b.dataset.tab);if(b.dataset.tab==="appeals")loadMyAppeals();if(b.dataset.tab==="admin" && $("adminTabButton").classList.contains("hidden")===false){loadAdminReports();loadAdminAppeals();}});
 $("signupForm").onsubmit=async e=>{
   e.preventDefault();const b=e.submitter;b.disabled=true;message("Creating your account...");
   try{
@@ -881,33 +883,42 @@ $("submitReport").onclick = async () => {
 
   const reason = $("reportReason").value;
   const details = $("reportDetails").value.trim();
+  const trackId = $("reportDialog").dataset.trackId;
 
+  if (!trackId) {
+    alert("Please choose a track to report first.");
+    return;
+  }
   if (!reason || !details) {
     alert("Please select a reason and explain your concern.");
     return;
   }
 
-  
-const { error } = await supabase
-  .from("content_reports")
-  .insert({
-    reporter_id: currentUser.id,
-    track_id: $("reportDialog").dataset.trackId,reason: reason,
-    details: details
-  });
-
-if (error) {
-  alert("Could not submit report: " + error.message);
-  return;
-}
-
-alert("Report submitted successfully.");
-$("reportDialog").close();
-$("reportReason").value = "";
-$("reportDetails").value = "";
-
+  const submitButton = $("submitReport");
+  submitButton.disabled = true;
+  try {
+    const { error } = await supabase
+      .from("content_reports")
+      .insert({
+        reporter_id: currentUser.id,
+        track_id: trackId,
+        reason,
+        details
+      });
+    if (error) throw error;
+    alert("Report submitted successfully.");
+    $("reportDialog").close();
+    $("reportDialog").removeAttribute("data-track-id");
+    $("reportReason").value = "";
+    $("reportDetails").value = "";
+  } catch (error) {
+    alert("Could not submit report: " + errorText(error));
+  } finally {
+    submitButton.disabled = false;
+  }
 };
 async function loadAdminReports() {
+  if (!currentUser || $("adminTabButton").classList.contains("hidden")) return;
   const container = $("adminReports");
   container.textContent = "Loading reports...";
 
@@ -939,7 +950,7 @@ heading.textContent = (report.tracks?.title || "Unknown track") + " — " + repo
     details.textContent = report.details || "No details provided.";
 
     const status = document.createElement("p");
-    status.textContent = "Status: " + report.status;
+    status.textContent = "Status: " + report.status + " | Report ID: " + report.id;
 const actions = document.createElement("div");
 actions.className = "tabs";
 
@@ -948,13 +959,15 @@ actions.className = "tabs";
   ["Dismiss", "dismissed"],
   ["Mark Action Taken", "action_taken"]
 ].forEach(([label, newStatus]) => {
-  if (["dismissed", "action_taken"].includes(report.status)) return;
+  if (["dismissed", "action_taken"].includes(report.status) || report.status === newStatus) return;
   const button = document.createElement("button");
   button.type = "button";
   button.textContent = label;
 
   button.onclick = async () => {
     if (!confirm(`Change report status to ${newStatus}?`)) return;
+    button.disabled = true;
+    try {
 
 let explanation = null;
 
@@ -991,6 +1004,9 @@ if (explanation) {
   }
 }
     await loadAdminReports();
+    } finally {
+      button.disabled = false;
+    }
   };
 
   actions.append(button);
@@ -1083,7 +1099,7 @@ async function loadMyAppeals() {
 };
   async function loadAdminAppeals() {
   const container = $("adminAppeals");
-  if (!container) return;
+  if (!container || !currentUser || $("adminTabButton").classList.contains("hidden")) return;
 
   container.textContent = "Loading appeals...";
 
@@ -1117,7 +1133,42 @@ async function loadMyAppeals() {
     const report = document.createElement("p");
     report.textContent = "Report ID: " + appeal.report_id;
 
-    card.append(heading, reason, report);
+    const decision = document.createElement("p");
+    decision.textContent = appeal.decision_reason ? "Decision: " + appeal.decision_reason : "Awaiting decision.";
+    const actions = document.createElement("div");
+    actions.className = "tabs";
+    if (["pending", "under_review"].includes(appeal.status)) {
+      [["Start Review", "under_review"], ["Uphold Appeal", "upheld"], ["Reject Appeal", "rejected"]].forEach(([label, newStatus]) => {
+        if (newStatus === appeal.status) return;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = label;
+        button.onclick = async () => {
+          let explanation = null;
+          if (["upheld", "rejected"].includes(newStatus)) {
+            explanation = prompt("Enter a written explanation for this appeal decision:");
+            if (explanation === null) return;
+            explanation = explanation.trim();
+            if (!explanation) { alert("A written explanation is required."); return; }
+          }
+          if (!confirm("Change appeal status to " + newStatus + "?")) return;
+          button.disabled = true;
+          try {
+            const changes = { status: newStatus, reviewed_by: currentUser.id };
+            if (explanation) changes.decision_reason = explanation;
+            const { data: updated, error } = await supabase.from("moderation_appeals")
+              .update(changes).eq("id", appeal.id)
+              .in("status", ["pending", "under_review"]).select("id");
+            if (error) throw error;
+            if (!updated?.length) { alert("Appeal was already reviewed or you do not have permission."); }
+            await loadAdminAppeals();
+          } catch (err) { alert("Could not update appeal: " + errorText(err)); }
+          finally { button.disabled = false; }
+        };
+        actions.append(button);
+      });
+    }
+    card.append(heading, reason, report, decision, actions);
     container.append(card);
   });
 }
