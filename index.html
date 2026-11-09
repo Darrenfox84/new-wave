@@ -113,7 +113,19 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 <button type="button" id="refreshAdminReports">Refresh Reports</button>
 
   <div id="adminReports">Reports will appear here.</div>
-</section>
+<hr class="divider">
+
+<h3>⚖️ Appeals Review</h3>
+<p>Review appeals submitted by artists against moderation decisions.</p>
+
+<button type="button" id="refreshAdminAppeals">
+  Refresh Appeals
+</button>
+
+<div id="adminAppeals">
+  Appeals will appear here.
+</div>
+  </section>
 <section id="tab-discover" class="card"><h2>Discover music</h2><button id="refreshFeed" class="secondary">Refresh feed</button><div id="feed"></div></section>
 <section class="card" id="rideTheWave" data-home-only="true">
   <h2>🌊 Ride the Wave</h2>
@@ -1069,6 +1081,48 @@ async function loadMyAppeals() {
     if (button) button.disabled = false;
   }
 };
+  async function loadAdminAppeals() {
+  const container = $("adminAppeals");
+  if (!container) return;
+
+  container.textContent = "Loading appeals...";
+
+  const { data, error } = await supabase
+    .from("moderation_appeals")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    container.textContent = "Could not load appeals: " + error.message;
+    return;
+  }
+
+  container.replaceChildren();
+
+  if (!data || data.length === 0) {
+    container.textContent = "No appeals to review.";
+    return;
+  }
+
+  data.forEach(appeal => {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const heading = document.createElement("h3");
+    heading.textContent = "Appeal status: " + appeal.status;
+
+    const reason = document.createElement("p");
+    reason.textContent = appeal.appeal_reason;
+
+    const report = document.createElement("p");
+    report.textContent = "Report ID: " + appeal.report_id;
+
+    card.append(heading, reason, report);
+    container.append(card);
+  });
+}
+
+$("refreshAdminAppeals").onclick = loadAdminAppeals;
 </script>
 </body>
   </html>
