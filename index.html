@@ -562,7 +562,7 @@ async function searchArtists(term=""){
   const clean=term.trim().replace(/^@/,"");
   if(clean){
     // Escape PostgREST OR-filter punctuation; user input is a search term, not a filter expression.
-    const safe=clean.replace(/[%,().*\]/g,"").slice(0,80);
+    const safe=clean.replace(/[%,().*\\]/g,"").slice(0,80);
     if(!safe){target.textContent="Enter a name or username.";return;}
     query=query.or(`username.ilike.%${safe}%,display_name.ilike.%${safe}%`);
   }
