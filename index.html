@@ -21,7 +21,7 @@ textarea{min-height:100px;resize:vertical}.hidden{display:none!important}.action
 .track,.post{border:1px solid var(--border);border-radius:12px;padding:15px;margin:12px 0;background:#100f20}
 .track h3,.post h3{margin:0 0 4px}.small{font-size:13px;color:var(--muted)}.inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .inline button{padding:8px 12px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
-.tabs button.active{background:var(--purple);color:#100a1d}.tabs button{background:#302943;color:white}
+.tabs button.active{background:var(--purple);color:#100a1d}#messagesTabBadge{display:inline-block;min-width:22px;padding:1px 6px;border-radius:99px;background:#f3d1ff;color:#1d092a;font-size:12px;margin-left:5px}#messagesTabBadge.hidden{display:none!important}.tabs button{background:#302943;color:white}
 audio{width:100%;margin-top:12px}#message{white-space:pre-wrap;padding:8px 0;color:#f0d4ff}
 label{display:block;color:#d6d1e6;font-weight:600}.divider{border:0;border-top:1px solid var(--border);margin:20px 0}
 footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
@@ -101,7 +101,7 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 <div class="tabs">
 <button class="active" data-tab="discover">Discover</button><button data-tab="music">My music</button>
 <button data-tab="profile">My profile</button><button data-tab="collab">Collaborate</button><button data-tab="friends">Friends</button>
-<button data-tab="messages">Messages</button>
+<button data-tab="messages" id="messagesTabButton">Messages <span id="messagesTabBadge" class="hidden" aria-label="Pending message requests"></span></button>
  
 <button type="button" data-tab="appeals">⚖️ My Appeals</button>
  <button type="button" data-tab="admin" id="adminTabButton" class="hidden">🛡️ Admin</button>
@@ -248,7 +248,7 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
     </form>
     <p id="outgoingMessageRequestStatus" class="small" role="status"></p>
   </div>
-  <label>Choose a friend
+  <label>Choose a conversation
     <select id="messageFriend">
       <option value="">Select a friend</option>
     </select>
@@ -354,7 +354,9 @@ if (user) {
   $("signupBox").classList.add("hidden");
   $("loginBox").classList.add("hidden");
   $("userEmail").textContent=user?.email||"";
-  if(user&&changed){loadTracks();loadFeed();loadProfile();loadCollabs();loadFriends();}
+  if(user&&changed){loadTracks();loadFeed();loadProfile();loadCollabs();loadFriends();refreshMessageBadge();}
+  if(!user){updateMessageBadge(0);if(messageBadgePoll){clearInterval(messageBadgePoll);messageBadgePoll=null;}}
+  else if(!messageBadgePoll){messageBadgePoll=setInterval(()=>{if(!document.hidden)refreshMessageBadge();},30000);}
 }
 function showTab(tab){
   if (tab === "admin" && $("adminTabButton").classList.contains("hidden")) {
@@ -413,6 +415,13 @@ function trackCard(track,withSocial=false){
       artistButton.type="button";
       artistButton.onclick=()=>openArtist(track.user_id);
       card.insertBefore(artistButton,card.children[1]||null);
+      if(track.user_id!==currentUser?.id){
+        const contact=node("button","✉ Message Artist","secondary");
+        contact.type="button";
+        contact.style.marginLeft="10px";
+        contact.onclick=()=>startArtistMessage(track.user_id);
+        card.insertBefore(contact,artistButton.nextSibling);
+      }
       artistButton.dataset.artistId=track.user_id;
     }
     const reportButton = node("button", "⚑ Report content", "secondary");
@@ -509,6 +518,12 @@ async function openArtist(userId){
   details.appendChild(avatar);
   }
   addText(details,"h2",profile?.display_name||profile?.username||"New Wave artist");
+  if(userId!==currentUser.id){
+    const contact=node("button","✉ Message Artist");
+    contact.type="button";
+    contact.onclick=()=>startArtistMessage(userId,profile?.username);
+    details.append(contact);
+  }
   if(profile?.username)addText(details,"p","@"+profile.username,"small");
   if(profile?.bio)addText(details,"p",profile.bio);
  
@@ -758,6 +773,49 @@ $("refreshFriends").onclick=loadFriends;
 
 
 let selectedMessageFriend = null;
+let pendingMessageRequestCount = 0;
+let messageBadgePoll = null;
+function updateMessageBadge(count){
+  pendingMessageRequestCount=count;
+  const badge=$("messagesTabBadge");
+  badge.textContent=count>0?String(count>99?"99+":count):"";
+  badge.classList.toggle("hidden",count===0);
+  $("messagesTabButton").setAttribute("aria-label",count?`Messages, ${count} pending requests`:"Messages");
+}
+async function refreshMessageBadge(){
+  if(!currentUser){updateMessageBadge(0);return;}
+  const userId=currentUser.id;
+  const {count,error}=await supabase.from("message_requests")
+    .select("id",{count:"exact",head:true}).eq("receiver_id",userId).eq("status","pending");
+  if(!error && currentUser?.id===userId)updateMessageBadge(count||0);
+}
+async function startArtistMessage(userId,username){
+  if(!currentUser||userId===currentUser.id)return;
+  showTab("messages");
+  await loadMessageFriends();
+  await loadMessageRequests();
+  const option=[...$("messageFriend").options].find(o=>o.value===userId);
+  if(option){
+    $("messageFriend").value=userId;
+    selectedMessageFriend=userId;
+    await loadMessages();
+    $("messageStatus").textContent="Existing conversation opened.";
+    $("messageHistory").scrollIntoView({behavior:"smooth",block:"start"});
+    return;
+  }
+  if(!username){
+    const {data,error}=await supabase.from("profiles").select("username").eq("id",userId).maybeSingle();
+    if(error||!data?.username){
+      $("outgoingMessageRequestStatus").textContent="Could not find this artist's username.";
+      return;
+    }
+    username=data.username;
+  }
+  $("messageRequestUsername").value=username;
+  $("outgoingMessageRequestStatus").textContent="Write a subject and introduction to request a conversation.";
+  $("messageRequestSubject").focus();
+  $("messageRequestForm").scrollIntoView({behavior:"smooth",block:"center"});
+}
 
 function messageStatus(text) {
   $("messageStatus").textContent = text;
@@ -899,7 +957,7 @@ async function loadMessageRequests() {
   if (!currentUser) return;
   $("messageRequestStatus").textContent = "Loading requests...";
   const {data,error} = await supabase.from("message_requests")
-    .select("id,sender_id,receiver_id,status,created_at")
+    .select("id,sender_id,receiver_id,subject,message,status,created_at")
     .eq("receiver_id",currentUser.id).eq("status","pending")
     .order("created_at",{ascending:false}).limit(50);
   if (error) {
@@ -907,6 +965,7 @@ async function loadMessageRequests() {
     return;
   }
   badge.textContent = data.length ? `(${data.length}${data.length===50?"+":""} pending)` : "";
+  await refreshMessageBadge();
   $("messageRequestStatus").textContent = data.length ? "Approve or decline each request." : "No pending requests.";
   let profiles = {};
   try {
@@ -917,8 +976,8 @@ async function loadMessageRequests() {
   for (const request of data) {
     const card = node("div",undefined,"post");
     addText(card,"h3",friendName(request.sender_id,profiles));
-    addText(card,"p","Subject: " + (request.subject || "(No subject)"));
-    const preview = addText(card,"p",request.message || "(No introduction)");
+    addText(card,"p","Subject: " + (request.subject || "(No subject provided)"));
+    const preview = addText(card,"p",request.message || "(No introduction provided)");
     preview.style.whiteSpace="pre-wrap";
     const buttons = node("div",undefined,"inline");
     for (const [action,label] of [["accepted","Accept"],["declined","Decline"]]) {
@@ -997,6 +1056,7 @@ $("refreshMessageRequests").onclick=async()=>{
   await loadMessageFriends();
 };
 $("messageFriend").addEventListener("focus",loadMessageFriends);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshMessageBadge();});
 
   try{
   const {data,error}=await supabase.auth.getSession();
