@@ -666,7 +666,7 @@ async function loadFriends(){
   requests.textContent="Loading...";list.textContent="Loading...";
   const me=currentUser.id;
   const {data,error}=await supabase.from("friend_requests")
-  .select("id,sender_id,receiver_id,subject,message,status,created_at")
+  .select("id,sender_id,receiver_id,status,created_at")
     .or(`sender_id.eq.${me},receiver_id.eq.${me}`)
     .order("created_at",{ascending:false});
   requests.replaceChildren();list.replaceChildren();
