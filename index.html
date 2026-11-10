@@ -126,7 +126,7 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
   Appeals will appear here.
 </div>
   </section>
-<section id="tab-discover" class="card"><h2>Discover music</h2><button id="refreshFeed" class="secondary">Refresh feed</button><div id="feed"></div></section>
+<section id="tab-discover" class="card"><h2>Discover artists</h2><p>Find musicians by their artist name or username. You do not need to be friends to view their public profiles.</p><form id="artistSearchForm"><label>Search artists<input id="artistSearchInput" maxlength="100" placeholder="Search name or @username" autocomplete="off"></label><button type="submit">Search artists</button> <button type="button" class="secondary" id="browseArtists">Browse artists</button></form><div id="artistSearchResults" aria-live="polite"></div><hr class="divider"><h2>Discover music</h2><button id="refreshFeed" class="secondary">Refresh feed</button><div id="feed"></div></section>
 <section class="card" id="rideTheWave" data-home-only="true">
   <h2>🌊 Ride the Wave</h2>
 
@@ -354,7 +354,7 @@ if (user) {
   $("signupBox").classList.add("hidden");
   $("loginBox").classList.add("hidden");
   $("userEmail").textContent=user?.email||"";
-  if(user&&changed){loadTracks();loadFeed();loadProfile();loadCollabs();loadFriends();refreshMessageBadge();}
+  if(user&&changed){loadTracks();loadFeed();searchArtists();loadProfile();loadCollabs();loadFriends();refreshMessageBadge();}
   if(!user){updateMessageBadge(0);if(messageBadgePoll){clearInterval(messageBadgePoll);messageBadgePoll=null;}}
   else if(!messageBadgePoll){messageBadgePoll=setInterval(()=>{if(!document.hidden)refreshMessageBadge();},30000);}
 }
@@ -555,6 +555,33 @@ if (profile?.artist_links) {
   if(!tracksResult.data?.length){addText(target,"p","No public tracks from this artist yet.");return;}
   for(const t of tracksResult.data){const card=trackCard(t,true);target.append(card);await attachAudio(card,t.audio_path);}
 }
+async function searchArtists(term=""){
+  if(!currentUser)return;
+  const target=$("artistSearchResults");target.textContent="Searching artists...";
+  let query=supabase.from("profiles").select("id,username,display_name,bio,genres").order("username",{ascending:true}).limit(40);
+  const clean=term.trim().replace(/^@/,"");
+  if(clean){
+    // Escape PostgREST OR-filter punctuation; user input is a search term, not a filter expression.
+    const safe=clean.replace(/[%,().*\]/g,"").slice(0,80);
+    if(!safe){target.textContent="Enter a name or username.";return;}
+    query=query.or(`username.ilike.%${safe}%,display_name.ilike.%${safe}%`);
+  }
+  const {data,error}=await query;
+  target.replaceChildren();
+  if(error){addText(target,"p","Could not search artists: "+errorText(error));return;}
+  if(!data?.length){addText(target,"p","No artists found. Try another name.");return;}
+  for(const artist of data){
+    const card=node("article",undefined,"post");
+    addText(card,"h3",artist.display_name||artist.username||"New Wave artist");
+    if(artist.username)addText(card,"p","@"+artist.username,"small");
+    if(artist.genres)addText(card,"p",artist.genres,"small");
+    if(artist.bio)addText(card,"p",artist.bio.length>180?artist.bio.slice(0,180)+"…":artist.bio);
+    const view=node("button","View public profile");view.type="button";view.onclick=()=>openArtist(artist.id);
+    card.append(view);target.append(card);
+  }
+}
+$("artistSearchForm").onsubmit=e=>{e.preventDefault();searchArtists($("artistSearchInput").value);};
+$("browseArtists").onclick=()=>{$("artistSearchInput").value="";searchArtists();};
 $("backDiscover").onclick=()=>showTab("discover");
 async function loadTracks(){
   if(!currentUser)return;const target=$("myTracks");target.textContent="Loading...";
@@ -562,7 +589,23 @@ async function loadTracks(){
   target.replaceChildren();
   if(error)return addText(target,"p","Could not load tracks: "+errorText(error));
   if(!data.length)return addText(target,"p","No tracks uploaded yet.");
-  for(const t of data){const card=trackCard(t);target.append(card);await attachAudio(card,t.audio_path);}
+  for(const t of data){
+    const card=trackCard(t);
+    const visibility=node("div",undefined,"inline");
+    const state=node("span",t.is_public?"Public — visible to everyone":"Private — only you","small");
+    const toggle=node("button",t.is_public?"Make private":"Make public","secondary");toggle.type="button";
+    toggle.onclick=async()=>{
+      const next=!t.is_public;
+      if(!confirm(next?"Make this track public and discoverable?":"Make this track private and remove it from public discovery?"))return;
+      toggle.disabled=true;
+      const {data:updated,error}=await supabase.from("tracks").update({is_public:next}).eq("id",t.id).eq("user_id",currentUser.id).select("id,is_public").maybeSingle();
+      if(error||!updated){message("Could not change visibility: "+(error?errorText(error):"Check track update permissions."));toggle.disabled=false;return;}
+      t.is_public=updated.is_public;state.textContent=t.is_public?"Public — visible to everyone":"Private — only you";
+      toggle.textContent=t.is_public?"Make private":"Make public";toggle.disabled=false;
+      loadFeed();
+    };
+    visibility.append(state,toggle);card.append(visibility);target.append(card);await attachAudio(card,t.audio_path);
+  }
 }
 async function loadFeed(){
   if(!currentUser)return;const target=$("feed");target.textContent="Loading music...";
