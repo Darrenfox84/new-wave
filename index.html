@@ -399,9 +399,19 @@ function node(tag,text,cls){
 function addText(container,tag,text,cls){const el=node(tag,text,cls);container.append(el);return el;}
 async function attachAudio(container,path){
   if(!path)return addText(container,"p","No audio file","small");
-  const {data,error}=await supabase.storage.from("Tracks").createSignedUrl(path,3600);
-  if(error||!data?.signedUrl){addText(container,"p","Audio unavailable. Storage playback permissions may need updating.","small");return;}
-  const audio=document.createElement("audio");audio.controls=true;audio.preload="none";audio.src=data.signedUrl;container.append(audio);
+  const audio=document.createElement("audio");audio.controls=true;audio.preload="none";audio.classList.add("hidden");
+  const load=node("button","Load audio","secondary");load.type="button";
+  const status=node("p","","small");
+  load.onclick=async()=>{
+    load.disabled=true;status.textContent="";
+    try{
+      const {data,error}=await supabase.storage.from("Tracks").createSignedUrl(path,300);
+      if(error||!data?.signedUrl)throw new Error("Audio unavailable or access denied.");
+      audio.src=data.signedUrl;audio.classList.remove("hidden");load.textContent="Refresh audio link";
+    }catch(error){audio.pause();audio.removeAttribute("src");audio.load();audio.classList.add("hidden");status.textContent="Audio unavailable or access denied.";load.textContent="Retry audio";}
+    finally{load.disabled=false;}
+  };
+  container.append(load,audio,status);
 }
 function trackCard(track,withSocial=false){
   const card=node("article",undefined,"track");
