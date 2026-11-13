@@ -192,6 +192,12 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 </label>
 
 <button type="submit">Save profile</button></form><p id="profileMessage"></p>
+<hr class="divider">
+<h3>Blocked artists</h3>
+<p class="small">Only you can manage your blocked list. Blocked artists cannot start new conversations with you.</p>
+<button type="button" class="secondary" id="refreshBlockedArtists">Refresh blocked artists</button>
+<div id="blockedArtistsList" aria-live="polite"></div>
+<p id="blockSettingsStatus" role="status" class="small"></p>
 </section>
   
 <section id="tab-appeals" class="card hidden">
@@ -354,7 +360,7 @@ if (user) {
   $("signupBox").classList.add("hidden");
   $("loginBox").classList.add("hidden");
   $("userEmail").textContent=user?.email||"";
-  if(user&&changed){loadTracks();loadFeed();searchArtists();loadProfile();loadCollabs();loadFriends();refreshMessageBadge();}
+  if(user&&changed){loadTracks();loadFeed();searchArtists();loadProfile();loadCollabs();loadFriends();loadBlockedArtists();refreshMessageBadge();}
   if(!user){updateMessageBadge(0);if(messageBadgePoll){clearInterval(messageBadgePoll);messageBadgePoll=null;}}
   else if(!messageBadgePoll){messageBadgePoll=setInterval(()=>{if(!document.hidden)refreshMessageBadge();},30000);}
 }
@@ -366,7 +372,7 @@ function showTab(tab){
   for (const name of ["discover","music","profile","collab","friends","messages","artist","appeals","admin"]) $("tab-"+name).classList.toggle("hidden",name!==tab);
 $("rideTheWave").classList.toggle("hidden", tab !== "discover");
 }
-document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{showTab(b.dataset.tab);if(b.dataset.tab==="messages"){loadMessageFriends();loadMessageRequests();}if(b.dataset.tab==="appeals")loadMyAppeals();if(b.dataset.tab==="admin" && $("adminTabButton").classList.contains("hidden")===false){loadAdminReports();loadAdminAppeals();}});
+document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{showTab(b.dataset.tab);if(b.dataset.tab==="messages"){loadMessageFriends();loadMessageRequests();}if(b.dataset.tab==="profile")loadBlockedArtists();if(b.dataset.tab==="appeals")loadMyAppeals();if(b.dataset.tab==="admin" && $("adminTabButton").classList.contains("hidden")===false){loadAdminReports();loadAdminAppeals();}});
 $("signupForm").onsubmit=async e=>{
   e.preventDefault();const b=e.submitter;b.disabled=true;message("Creating your account...");
   try{
@@ -529,10 +535,44 @@ async function openArtist(userId){
   }
   addText(details,"h2",profile?.display_name||profile?.username||"New Wave artist");
   if(userId!==currentUser.id){
+    const controls=node("div",undefined,"inline");
     const contact=node("button","✉ Message Artist");
     contact.type="button";
     contact.onclick=()=>startArtistMessage(userId,profile?.username);
-    details.append(contact);
+    const block=node("button","Checking block status…","secondary");
+    block.type="button";
+    block.disabled=true;
+    controls.append(contact,block);
+    const status=addText(details,"p","","small");
+    details.append(controls);
+    const {data:existing,error:blockError}=await supabase.from("user_blocks")
+      .select("blocked_id").eq("blocker_id",currentUser.id).eq("blocked_id",userId).maybeSingle();
+    if(blockError){
+      block.textContent="Block unavailable";
+      status.textContent="Could not check blocking: "+errorText(blockError);
+    }else{
+      let isBlocked=!!existing;
+      const refreshControls=()=>{
+        block.textContent=isBlocked?"Unblock Artist":"Block Artist";
+        contact.disabled=isBlocked;
+        contact.title=isBlocked?"Unblock this artist to contact them":"";
+        block.disabled=false;
+      };
+      refreshControls();
+      block.onclick=async()=>{
+        const artistName=profile?.display_name||profile?.username||"this artist";
+        if(!confirm(isBlocked?`Unblock ${artistName}? They will be able to request contact again.`:`Block ${artistName}? They will not be able to send you new messages or message requests.`))return;
+        block.disabled=true;
+        const {error}=isBlocked
+          ? await supabase.from("user_blocks").delete().eq("blocker_id",currentUser.id).eq("blocked_id",userId)
+          : await supabase.from("user_blocks").insert({blocker_id:currentUser.id,blocked_id:userId});
+        if(error){status.textContent="Could not update block: "+errorText(error);block.disabled=false;return;}
+        isBlocked=!isBlocked;
+        status.textContent=isBlocked?"Artist blocked.":"Artist unblocked.";
+        refreshControls();
+        loadBlockedArtists();
+      };
+    }
   }
   if(profile?.username)addText(details,"p","@"+profile.username,"small");
   if(profile?.bio)addText(details,"p",profile.bio);
@@ -565,6 +605,41 @@ if (profile?.artist_links) {
   if(!tracksResult.data?.length){addText(target,"p","No public tracks from this artist yet.");return;}
   for(const t of tracksResult.data){const card=trackCard(t,true);target.append(card);await attachAudio(card,t.audio_path);}
 }
+async function loadBlockedArtists(){
+  if(!currentUser)return;
+  const target=$("blockedArtistsList"),status=$("blockSettingsStatus");
+  target.textContent="Loading blocked artists…";
+  status.textContent="";
+  const {data,error}=await supabase.from("user_blocks")
+    .select("blocked_id").eq("blocker_id",currentUser.id);
+  target.replaceChildren();
+  if(error){status.textContent="Could not load blocked artists: "+errorText(error);return;}
+  if(!data?.length){addText(target,"p","You have not blocked any artists.","small");return;}
+  const ids=data.map(item=>item.blocked_id);
+  const {data:profiles,error:profileError}=await supabase.from("profiles")
+    .select("id,username,display_name").in("id",ids);
+  if(profileError){status.textContent="Could not load artist names: "+errorText(profileError);return;}
+  const names=new Map((profiles||[]).map(p=>[p.id,p]));
+  for(const item of data){
+    const artist=names.get(item.blocked_id);
+    const row=node("div",undefined,"post");
+    addText(row,"strong",artist?.display_name||artist?.username||"Artist");
+    if(artist?.username)addText(row,"p","@"+artist.username,"small");
+    const unblock=node("button","Unblock Artist","secondary");
+    unblock.type="button";
+    unblock.onclick=async()=>{
+      if(!confirm(`Unblock ${artist?.display_name||artist?.username||"this artist"}?`))return;
+      unblock.disabled=true;
+      const {error:deleteError}=await supabase.from("user_blocks").delete()
+        .eq("blocker_id",currentUser.id).eq("blocked_id",item.blocked_id);
+      if(deleteError){status.textContent="Could not unblock: "+errorText(deleteError);unblock.disabled=false;return;}
+      status.textContent="Artist unblocked.";
+      await loadBlockedArtists();
+    };
+    row.append(unblock);target.append(row);
+  }
+}
+$("refreshBlockedArtists").onclick=loadBlockedArtists;
 async function searchArtists(term=""){
   if(!currentUser)return;
   const target=$("artistSearchResults");target.textContent="Searching artists...";
