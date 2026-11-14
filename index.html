@@ -674,7 +674,7 @@ async function renderGallery(artistId,target,owner){
       else addText(card,"p","Video link unavailable.");
     }else if(item.storage_path){
       // A signed URL is issued only after Supabase checks storage SELECT permissions.
-      const {data:signed,error:signError}=await supabase.storage.from(GALLERY_BUCKET).createSignedUrl(item.storage_path,3600);
+      const {data:signed,error:signError}=await supabase.storage.from(GALLERY_BUCKET).createSignedUrl(item.storage_path,60);
       if(signError||!signed?.signedUrl){addText(card,"p","Media unavailable: "+errorText(signError||"Access denied"),"small");}
       else if(item.media_type==="photo"){
         const img=document.createElement("img");img.src=signed.signedUrl;img.alt=item.caption||"Artist photo";img.loading="lazy";card.append(img);
