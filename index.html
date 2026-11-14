@@ -22,7 +22,13 @@ textarea{min-height:100px;resize:vertical}.hidden{display:none!important}.action
 .track h3,.post h3{margin:0 0 4px}.small{font-size:13px;color:var(--muted)}.inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .inline button{padding:8px 12px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
 .tabs button.active{background:var(--purple);color:#100a1d}#messagesTabBadge{display:inline-block;min-width:22px;padding:1px 6px;border-radius:99px;background:#f3d1ff;color:#1d092a;font-size:12px;margin-left:5px}#messagesTabBadge.hidden{display:none!important}.tabs button{background:#302943;color:white}
-audio{width:100%;margin-top:12px}#message{white-space:pre-wrap;padding:8px 0;color:#f0d4ff}
+audio{width:100%;margin-top:12px}
+.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:14px 0}
+.gallery-item{background:#100f20;border:1px solid var(--border);border-radius:12px;padding:12px;min-width:0}
+.gallery-item img,.gallery-item video,.gallery-item iframe{width:100%;aspect-ratio:16/10;object-fit:contain;background:#090814;border:0;border-radius:8px}
+.gallery-item iframe{aspect-ratio:16/9}.gallery-item p{overflow-wrap:anywhere}
+.gallery-item button{margin:4px 5px 4px 0}.gallery-item select{margin:6px 0}
+.gallery-note{font-size:13px;color:var(--muted)}#message{white-space:pre-wrap;padding:8px 0;color:#f0d4ff}
 label{display:block;color:#d6d1e6;font-weight:600}.divider{border:0;border-top:1px solid var(--border);margin:20px 0}
 footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 @media(max-width:500px){.card{padding:16px}.hero{padding-top:22px}}
@@ -158,7 +164,7 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
   TEST MODE ONLY — No real money will be taken.
 </p>
 
-</section><section id="tab-artist" class="card hidden"><button id="backDiscover" class="secondary artist-back">← Back to Discover</button><div id="artistDetails"></div><h2>Public tracks</h2><div id="artistTracks"></div></section>
+</section><section id="tab-artist" class="card hidden"><button id="backDiscover" class="secondary artist-back">← Back to Discover</button><div id="artistDetails"></div><h2>Public tracks</h2><div id="artistTracks"></div><hr class="divider"><h2>Photos &amp; videos</h2><div id="artistGallery" class="gallery-grid" aria-live="polite"></div></section>
 <section id="tab-music" class="card hidden"><h2>Upload your music</h2>
 <label>Song title<input id="trackTitle" maxlength="200" placeholder="Your song title"></label>
 <label>Genre<input id="trackGenre" maxlength="80" placeholder="Rock, electronic, hip-hop..."></label>
@@ -198,6 +204,30 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 <button type="button" class="secondary" id="refreshBlockedArtists">Refresh blocked artists</button>
 <div id="blockedArtistsList" aria-live="polite"></div>
 <p id="blockSettingsStatus" role="status" class="small"></p>
+<hr class="divider">
+<h2>My photo &amp; video gallery</h2>
+<p class="small">Share your pictures, videos and YouTube links. Each item can be public or private. Private items are visible only to you while signed in.</p>
+<div class="grid">
+  <div>
+    <h3>Upload photo or video</h3>
+    <label>Choose photo or video<input id="galleryFile" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"></label>
+    <label>Caption (optional)<input id="galleryFileCaption" maxlength="500" placeholder="Tell fans about this moment"></label>
+    <label class="inline"><input id="galleryFilePublic" type="checkbox" checked style="width:auto;margin:0"> Public</label>
+    <p class="gallery-note">Photos: JPG, PNG or WebP, up to 5 MB. Videos: MP4 or WebM, up to 25 MB (subject to your Supabase plan limits).</p>
+    <button type="button" id="galleryUpload">Upload to gallery</button>
+  </div>
+  <div>
+    <h3>Add a YouTube video</h3>
+    <label>YouTube link<input id="galleryYoutubeUrl" type="url" placeholder="https://www.youtube.com/watch?v=..."></label>
+    <label>Caption (optional)<input id="galleryYoutubeCaption" maxlength="500" placeholder="My latest music video"></label>
+    <label class="inline"><input id="galleryYoutubePublic" type="checkbox" checked style="width:auto;margin:0"> Public</label>
+    <p class="gallery-note">A private YouTube gallery entry is hidden on New Wave, but the YouTube video itself may still be accessible on YouTube.</p>
+    <button type="button" id="galleryAddYoutube">Add YouTube video</button>
+  </div>
+</div>
+<p id="galleryStatus" role="status"></p>
+<div class="inline"><h3 style="margin:0">My gallery</h3><button type="button" class="secondary" id="galleryRefresh">Refresh gallery</button></div>
+<div id="galleryMine" class="gallery-grid" aria-live="polite"></div>
 </section>
   
 <section id="tab-appeals" class="card hidden">
@@ -360,7 +390,7 @@ if (user) {
   $("signupBox").classList.add("hidden");
   $("loginBox").classList.add("hidden");
   $("userEmail").textContent=user?.email||"";
-  if(user&&changed){loadTracks();loadFeed();searchArtists();loadProfile();loadCollabs();loadFriends();loadBlockedArtists();refreshMessageBadge();}
+  if(user&&changed){loadTracks();loadFeed();searchArtists();loadProfile();loadCollabs();loadFriends();loadBlockedArtists();loadMyGallery();refreshMessageBadge();}
   if(!user){updateMessageBadge(0);if(messageBadgePoll){clearInterval(messageBadgePoll);messageBadgePoll=null;}}
   else if(!messageBadgePoll){messageBadgePoll=setInterval(()=>{if(!document.hidden)refreshMessageBadge();},30000);}
 }
@@ -372,7 +402,7 @@ function showTab(tab){
   for (const name of ["discover","music","profile","collab","friends","messages","artist","appeals","admin"]) $("tab-"+name).classList.toggle("hidden",name!==tab);
 $("rideTheWave").classList.toggle("hidden", tab !== "discover");
 }
-document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{showTab(b.dataset.tab);if(b.dataset.tab==="messages"){loadMessageFriends();loadMessageRequests();}if(b.dataset.tab==="profile")loadBlockedArtists();if(b.dataset.tab==="appeals")loadMyAppeals();if(b.dataset.tab==="admin" && $("adminTabButton").classList.contains("hidden")===false){loadAdminReports();loadAdminAppeals();}});
+document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{showTab(b.dataset.tab);if(b.dataset.tab==="messages"){loadMessageFriends();loadMessageRequests();}if(b.dataset.tab==="profile"){loadBlockedArtists();loadMyGallery();}if(b.dataset.tab==="appeals")loadMyAppeals();if(b.dataset.tab==="admin" && $("adminTabButton").classList.contains("hidden")===false){loadAdminReports();loadAdminAppeals();}});
 $("signupForm").onsubmit=async e=>{
   e.preventDefault();const b=e.submitter;b.disabled=true;message("Creating your account...");
   try{
@@ -514,12 +544,13 @@ async function openArtist(userId){
   if(!currentUser||!userId)return;
   showTab("artist");
   const details=$("artistDetails"),target=$("artistTracks");
-  details.textContent="Loading artist...";target.replaceChildren();
+  details.textContent="Loading artist...";target.replaceChildren();$("artistGallery").replaceChildren();
   const [profileResult,tracksResult]=await Promise.all([
     supabase.from("profiles").select("username,display_name,bio,avatar_url,genres,artist_links").eq("id",userId).maybeSingle(),
     supabase.from("tracks").select("id,title,genre,description,audio_path,created_at,user_id").eq("user_id",userId).eq("is_public",true).order("created_at",{ascending:false}).limit(50)
   ]);
   details.replaceChildren();
+  loadArtistGallery(userId);
   const profile=profileResult.data;
   if (profile?.avatar_url) {
   const avatar = document.createElement("img");
@@ -605,6 +636,121 @@ if (profile?.artist_links) {
   if(!tracksResult.data?.length){addText(target,"p","No public tracks from this artist yet.");return;}
   for(const t of tracksResult.data){const card=trackCard(t,true);target.append(card);await attachAudio(card,t.audio_path);}
 }
+// Artist media gallery: all file paths live inside the artist's own private-bucket folder.
+const GALLERY_BUCKET="artist-gallery";
+const GALLERY_TYPES={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","video/mp4":"mp4","video/webm":"webm"};
+function youtubeVideoId(raw){
+  try{
+    const u=new URL(raw.trim());const host=u.hostname.toLowerCase().replace(/^www\./,"");
+    let id="";
+    if(host==="youtu.be")id=u.pathname.split("/")[1]||"";
+    else if(["youtube.com","m.youtube.com","music.youtube.com","youtube-nocookie.com"].includes(host)){
+      if(u.pathname==="/watch")id=u.searchParams.get("v")||"";
+      else if(/^\/(shorts|embed|live)\//.test(u.pathname))id=u.pathname.split("/")[2]||"";
+    }
+    return /^[A-Za-z0-9_-]{11}$/.test(id)?id:null;
+  }catch{return null;}
+}
+function galleryNotice(text){$("galleryStatus").textContent=text;}
+async function galleryItemsFor(artistId,owner){
+  let q=supabase.from("artist_media").select("id,artist_id,media_type,storage_path,youtube_url,caption,is_public,created_at")
+    .eq("artist_id",artistId).order("created_at",{ascending:false}).limit(80);
+  if(!owner)q=q.eq("is_public",true);
+  return await q;
+}
+async function renderGallery(artistId,target,owner){
+  target.textContent="Loading gallery…";
+  const {data,error}=await galleryItemsFor(artistId,owner);
+  if(!currentUser||(!owner&&$("tab-artist").classList.contains("hidden")))return;
+  target.replaceChildren();
+  if(error){addText(target,"p","Could not load gallery: "+errorText(error));return;}
+  if(!data?.length){addText(target,"p",owner?"Your gallery is empty.":"No public photos or videos yet.","small");return;}
+  for(const item of data){
+    const card=node("article",undefined,"gallery-item");
+    if(item.media_type==="youtube"){
+      const id=youtubeVideoId(item.youtube_url||"");
+      if(id){const frame=document.createElement("iframe");frame.src="https://www.youtube-nocookie.com/embed/"+id;
+        frame.title=item.caption||"Artist YouTube video";frame.loading="lazy";frame.allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";frame.allowFullscreen=true;frame.referrerPolicy="strict-origin-when-cross-origin";card.append(frame);}
+      else addText(card,"p","Video link unavailable.");
+    }else if(item.storage_path){
+      // A signed URL is issued only after Supabase checks storage SELECT permissions.
+      const {data:signed,error:signError}=await supabase.storage.from(GALLERY_BUCKET).createSignedUrl(item.storage_path,3600);
+      if(signError||!signed?.signedUrl){addText(card,"p","Media unavailable: "+errorText(signError||"Access denied"),"small");}
+      else if(item.media_type==="photo"){
+        const img=document.createElement("img");img.src=signed.signedUrl;img.alt=item.caption||"Artist photo";img.loading="lazy";card.append(img);
+      }else{
+        const video=document.createElement("video");video.src=signed.signedUrl;video.controls=true;video.preload="none";video.playsInline=true;card.append(video);
+      }
+    }
+    if(item.caption)addText(card,"p",item.caption);
+    if(owner){
+      const visibility=document.createElement("select");visibility.setAttribute("aria-label","Gallery visibility");
+      for(const [val,label] of [["true","Public"],["false","Private"]]){
+        const option=document.createElement("option");option.value=val;option.textContent=label;visibility.append(option);
+      }
+      visibility.value=String(item.is_public);
+      visibility.onchange=async()=>{
+        visibility.disabled=true;
+        const {error:editError}=await supabase.from("artist_media").update({is_public:visibility.value==="true"})
+          .eq("id",item.id).eq("artist_id",currentUser.id);
+        if(editError){galleryNotice("Could not change visibility: "+errorText(editError));visibility.value=String(item.is_public);}
+        else{item.is_public=visibility.value==="true";galleryNotice("Visibility updated.");}
+        visibility.disabled=false;
+      };
+      const del=node("button","Delete","secondary");del.type="button";
+      del.onclick=async()=>{
+        if(!confirm("Delete this gallery item permanently?"))return;
+        del.disabled=true;
+        // Remove storage object first; database remains if storage removal fails.
+        if(item.storage_path){
+          const {error:removeError}=await supabase.storage.from(GALLERY_BUCKET).remove([item.storage_path]);
+          if(removeError){galleryNotice("Could not delete file: "+errorText(removeError));del.disabled=false;return;}
+        }
+        const {error:deleteError}=await supabase.from("artist_media").delete().eq("id",item.id).eq("artist_id",currentUser.id);
+        if(deleteError){galleryNotice("File removed, but database cleanup failed: "+errorText(deleteError));del.disabled=false;return;}
+        galleryNotice("Gallery item deleted.");await loadMyGallery();
+      };
+      card.append(visibility,del);
+    }
+    target.append(card);
+  }
+}
+async function loadMyGallery(){if(currentUser)await renderGallery(currentUser.id,$("galleryMine"),true);}
+async function loadArtistGallery(id){if(currentUser)await renderGallery(id,$("artistGallery"),id===currentUser.id);}
+$("galleryRefresh").onclick=loadMyGallery;
+$("galleryUpload").onclick=async()=>{
+  if(!currentUser)return;
+  const file=$("galleryFile").files[0];
+  if(!file){galleryNotice("Choose a photo or video first.");return;}
+  const ext=GALLERY_TYPES[file.type];const isPhoto=file.type.startsWith("image/");
+  if(!ext){galleryNotice("Choose a JPG, PNG, WebP, MP4 or WebM file.");return;}
+  const max=isPhoto?5*1024*1024:25*1024*1024;
+  if(!file.size||file.size>max){galleryNotice(`File must be under ${isPhoto?5:25} MB.`);return;}
+  const button=$("galleryUpload");button.disabled=true;galleryNotice("Uploading…");
+  const path=`${currentUser.id}/${crypto.randomUUID()}.${ext}`;
+  try{
+    const {error:upError}=await supabase.storage.from(GALLERY_BUCKET).upload(path,file,{contentType:file.type,upsert:false});
+    if(upError)throw upError;
+    const {error:dbError}=await supabase.from("artist_media").insert({artist_id:currentUser.id,
+      media_type:isPhoto?"photo":"video",storage_path:path,caption:$("galleryFileCaption").value.trim(),is_public:$("galleryFilePublic").checked});
+    if(dbError){await supabase.storage.from(GALLERY_BUCKET).remove([path]);throw dbError;}
+    $("galleryFile").value="";$("galleryFileCaption").value="";
+    galleryNotice("Gallery upload saved!");await loadMyGallery();
+  }catch(err){galleryNotice("Upload failed: "+errorText(err));}
+  finally{button.disabled=false;}
+};
+$("galleryAddYoutube").onclick=async()=>{
+  if(!currentUser)return;
+  const id=youtubeVideoId($("galleryYoutubeUrl").value);
+  if(!id){galleryNotice("Enter a valid YouTube video URL.");return;}
+  const button=$("galleryAddYoutube");button.disabled=true;
+  const {error}=await supabase.from("artist_media").insert({artist_id:currentUser.id,media_type:"youtube",
+    youtube_url:"https://www.youtube.com/watch?v="+id,caption:$("galleryYoutubeCaption").value.trim(),is_public:$("galleryYoutubePublic").checked});
+  if(error)galleryNotice("Could not add YouTube video: "+errorText(error));
+  else{$("galleryYoutubeUrl").value="";$("galleryYoutubeCaption").value="";galleryNotice("YouTube video added!");await loadMyGallery();}
+  button.disabled=false;
+};
+
 async function loadBlockedArtists(){
   if(!currentUser)return;
   const target=$("blockedArtistsList"),status=$("blockSettingsStatus");
