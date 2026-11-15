@@ -126,6 +126,7 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 <button data-tab="messages" id="messagesTabButton">Messages <span id="messagesTabBadge" class="hidden" aria-label="Pending message requests"></span></button>
  
 <button type="button" data-tab="appeals">⚖️ My Appeals</button>
+<button type="button" data-tab="settings">⚙️ Account Settings</button>
  <button type="button" data-tab="admin" id="adminTabButton" class="hidden">🛡️ Admin</button>
 </div></div>
   <section id="tab-admin" class="card hidden">
@@ -148,6 +149,33 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
   Appeals will appear here.
 </div>
   </section>
+<section id="tab-settings" class="card hidden">
+<h2>Account Settings</h2>
+<p>Manage the login details for your New Wave account. Changes to your artist profile are still made in My profile.</p>
+<h3>Change password</h3>
+<form id="settingsPasswordForm">
+<label>New password<input id="settingsNewPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+<label>Confirm new password<input id="settingsConfirmPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+<button type="submit">Change password</button>
+</form>
+<p class="small" id="settingsPasswordStatus" role="status" aria-live="polite"></p>
+<hr class="divider">
+<h3>Change email address</h3>
+<p class="small">Current email: <strong id="settingsCurrentEmail"></strong>. Supabase may require confirmation from your current and new email addresses before the change takes effect.</p>
+<form id="settingsEmailForm">
+<label>New email address<input id="settingsNewEmail" type="email" autocomplete="email" required></label>
+<button type="submit">Request email change</button>
+</form>
+<p class="small" id="settingsEmailStatus" role="status" aria-live="polite"></p>
+<hr class="divider">
+<h3>Your personal data</h3>
+<p>You can download a JSON copy of your account details and the records you can access from your artist profile, tracks and gallery. This is a basic export, not yet a complete data portability package.</p>
+<button type="button" id="settingsExportData" class="secondary">Download basic data export</button>
+<p class="small" id="settingsExportStatus" role="status" aria-live="polite"></p>
+<hr class="divider">
+<h3>Delete account</h3>
+<p>Permanent account deletion is not available yet. It requires a secure server-side process to remove your login and handle uploaded files, messages and related records. This will be completed before launch.</p>
+</section>
 <section id="tab-discover" class="card"><h2>Discover artists</h2><p>Find musicians by their artist name or username. You do not need to be friends to view their public profiles.</p><form id="artistSearchForm"><label>Search artists<input id="artistSearchInput" maxlength="100" placeholder="Search name or @username" autocomplete="off"></label><button type="submit">Search artists</button> <button type="button" class="secondary" id="browseArtists">Browse artists</button></form><div id="artistSearchResults" aria-live="polite"></div><hr class="divider"><h2>Discover music</h2><button id="refreshFeed" class="secondary">Refresh feed</button><div id="feed"></div></section>
 <section class="card" id="rideTheWave" data-home-only="true">
   <h2>🌊 Ride the Wave</h2>
@@ -444,6 +472,7 @@ if (user) {
   $("forgotPasswordBox").classList.add("hidden");
   $("resetPasswordBox").classList.toggle("hidden",!recoveryMode);
   $("userEmail").textContent=user?.email||"";
+  $("settingsCurrentEmail").textContent=user?.email||"";
   if(user&&changed){loadTracks();loadFeed();searchArtists();loadProfile();loadCollabs();loadFriends();loadBlockedArtists();loadMyGallery();refreshMessageBadge();}
   if(!user){updateMessageBadge(0);if(messageBadgePoll){clearInterval(messageBadgePoll);messageBadgePoll=null;}}
   else if(!messageBadgePoll){messageBadgePoll=setInterval(()=>{if(!document.hidden)refreshMessageBadge();},30000);}
@@ -453,10 +482,64 @@ function showTab(tab){
   return;
 }
   for(const b of document.querySelectorAll("[data-tab]")) b.classList.toggle("active",b.dataset.tab===tab);
-  for (const name of ["discover","music","profile","collab","friends","messages","artist","appeals","admin"]) $("tab-"+name).classList.toggle("hidden",name!==tab);
+  for (const name of ["discover","music","profile","collab","friends","messages","artist","appeals","admin","settings"]) $("tab-"+name).classList.toggle("hidden",name!==tab);
 $("rideTheWave").classList.toggle("hidden", tab !== "discover");
 }
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{showTab(b.dataset.tab);if(b.dataset.tab==="messages"){loadMessageFriends();loadMessageRequests();}if(b.dataset.tab==="profile"){loadBlockedArtists();loadMyGallery();}if(b.dataset.tab==="appeals")loadMyAppeals();if(b.dataset.tab==="admin" && $("adminTabButton").classList.contains("hidden")===false){loadAdminReports();loadAdminAppeals();}});
+$("settingsPasswordForm").onsubmit=async e=>{
+  e.preventDefault();
+  const b=e.submitter, password=$("settingsNewPassword").value;
+  const status=$("settingsPasswordStatus");
+  if(!currentUser){status.textContent="Please log in first.";return;}
+  if(password!==$("settingsConfirmPassword").value){status.textContent="Passwords do not match.";return;}
+  b.disabled=true;status.textContent="Updating password...";
+  try{
+    const {error}=await supabase.auth.updateUser({password});
+    if(error)throw error;
+    $("settingsNewPassword").value="";$("settingsConfirmPassword").value="";
+    status.textContent="Password changed successfully.";
+  }catch(err){status.textContent="Password change failed: "+errorText(err);}
+  finally{b.disabled=false;}
+};
+$("settingsEmailForm").onsubmit=async e=>{
+  e.preventDefault();
+  const b=e.submitter,status=$("settingsEmailStatus");
+  const email=$("settingsNewEmail").value.trim();
+  if(!currentUser){status.textContent="Please log in first.";return;}
+  if(email.toLowerCase()===currentUser.email?.toLowerCase()){status.textContent="That is already your current email address.";return;}
+  b.disabled=true;status.textContent="Requesting email change...";
+  try{
+    const {error}=await supabase.auth.updateUser({email},{emailRedirectTo:location.origin+location.pathname});
+    if(error)throw error;
+    $("settingsNewEmail").value="";
+    status.textContent="Email change requested. Check your inboxes for confirmation messages. Your existing email remains active until the change is confirmed.";
+  }catch(err){status.textContent="Email change failed: "+errorText(err);}
+  finally{b.disabled=false;}
+};
+$("settingsExportData").onclick=async()=>{
+  const b=$("settingsExportData"),status=$("settingsExportStatus");
+  if(!currentUser){status.textContent="Please log in first.";return;}
+  b.disabled=true;status.textContent="Preparing basic export...";
+  try{
+    const uid=currentUser.id;
+    const tables=["profiles","tracks","artist_media"];
+    const exportData={exported_at:new Date().toISOString(),account:{id:uid,email:currentUser.email,created_at:currentUser.created_at},records:{}};
+    for(const table of tables){
+      const column=table==="artist_media"?"artist_id": "id";
+      // Tracks have an artist owner column; verify the existing query before exporting.
+      const ownerColumn=table==="tracks"?"user_id":column;
+      const {data,error}=await supabase.from(table).select("*").eq(ownerColumn,uid);
+      if(error)throw new Error(table+": "+error.message);
+      exportData.records[table]=data||[];
+    }
+    const blob=new Blob([JSON.stringify(exportData,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob),a=document.createElement("a");
+    a.href=url;a.download="new-wave-basic-export.json";document.body.append(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),10000);
+    status.textContent="Basic export prepared. This does not include all messaging or authentication records.";
+  }catch(err){status.textContent="Export could not be completed: "+errorText(err);}
+  finally{b.disabled=false;}
+};
 $("signupForm").onsubmit=async e=>{
   e.preventDefault();const b=e.submitter;b.disabled=true;message("Creating your account...");
   try{
