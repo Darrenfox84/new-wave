@@ -153,10 +153,9 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 <h2>Account Settings</h2>
 <p>Manage the login details for your New Wave account. Changes to your artist profile are still made in My profile.</p>
 <h3>Change password</h3>
+<p>For your security, password changes require a verification link sent to your registered email address. You cannot change your password directly from an unlocked device.</p>
 <form id="settingsPasswordForm">
-<label>New password<input id="settingsNewPassword" type="password" autocomplete="new-password" minlength="8" required></label>
-<label>Confirm new password<input id="settingsConfirmPassword" type="password" autocomplete="new-password" minlength="8" required></label>
-<button type="submit">Change password</button>
+<button type="submit">Email me a password-change link</button>
 </form>
 <p class="small" id="settingsPasswordStatus" role="status" aria-live="polite"></p>
 <hr class="divider">
@@ -488,17 +487,14 @@ $("rideTheWave").classList.toggle("hidden", tab !== "discover");
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{showTab(b.dataset.tab);if(b.dataset.tab==="messages"){loadMessageFriends();loadMessageRequests();}if(b.dataset.tab==="profile"){loadBlockedArtists();loadMyGallery();}if(b.dataset.tab==="appeals")loadMyAppeals();if(b.dataset.tab==="admin" && $("adminTabButton").classList.contains("hidden")===false){loadAdminReports();loadAdminAppeals();}});
 $("settingsPasswordForm").onsubmit=async e=>{
   e.preventDefault();
-  const b=e.submitter, password=$("settingsNewPassword").value;
-  const status=$("settingsPasswordStatus");
-  if(!currentUser){status.textContent="Please log in first.";return;}
-  if(password!==$("settingsConfirmPassword").value){status.textContent="Passwords do not match.";return;}
-  b.disabled=true;status.textContent="Updating password...";
+  const b=e.submitter,status=$("settingsPasswordStatus");
+  if(!currentUser || !currentUser.email){status.textContent="Please log in first.";return;}
+  b.disabled=true;status.textContent="Requesting a secure password-change email...";
   try{
-    const {error}=await supabase.auth.updateUser({password});
+    const {error}=await supabase.auth.resetPasswordForEmail(currentUser.email,{redirectTo:location.origin+location.pathname});
     if(error)throw error;
-    $("settingsNewPassword").value="";$("settingsConfirmPassword").value="";
-    status.textContent="Password changed successfully.";
-  }catch(err){status.textContent="Password change failed: "+errorText(err);}
+    status.textContent="If your registered email is eligible, a password-change link will arrive shortly. Check your inbox and spam folder.";
+  }catch(err){status.textContent="Could not request password-change email: "+errorText(err);}
   finally{b.disabled=false;}
 };
 $("settingsEmailForm").onsubmit=async e=>{
