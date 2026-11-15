@@ -101,6 +101,22 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 <form id="loginForm"><label>Email<input id="loginEmail" type="email" autocomplete="email" required></label>
 <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required></label>
 <button type="submit">Log in</button></form>
+<p class="small"><button id="showForgotPassword" type="button" class="secondary">Forgot password?</button></p>
+</section>
+<section id="forgotPasswordBox" class="card auth hidden">
+<h2>Reset your password</h2>
+<p>Enter the email address you used to join New Wave. If an account exists, we'll email a password-reset link.</p>
+<form id="forgotPasswordForm"><label>Email<input id="recoveryEmail" type="email" autocomplete="email" required></label>
+<button type="submit">Send reset link</button> <button type="button" id="backToLogin" class="secondary">Back to log in</button></form>
+<p id="recoveryRequestStatus" role="status" aria-live="polite" class="small"></p>
+</section>
+<section id="resetPasswordBox" class="card auth hidden">
+<h2>Choose a new password</h2>
+<p>Enter your new New Wave password below.</p>
+<form id="resetPasswordForm"><label>New password<input id="newRecoveryPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+<label>Confirm new password<input id="confirmRecoveryPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+<button type="submit">Update password</button></form>
+<p id="recoveryUpdateStatus" role="status" aria-live="polite" class="small"></p>
 </section>
 <section id="app" class="hidden">
 <div class="card"><h2>Artist dashboard</h2><p>Signed in as <strong id="userEmail"></strong></p>
@@ -358,13 +374,49 @@ let currentUser = null;
 };
 const errorText = e => e?.message || String(e || "Unknown error");
 const message = text => $("message").textContent = text;
+let recoveryMode = new URLSearchParams(location.search).get("type") === "recovery" || new URLSearchParams(location.hash.slice(1)).get("type") === "recovery";
 function showForm(which){
+  if (recoveryMode && which !== "reset") return;
   $("signupBox").classList.toggle("hidden",which!=="signup");
   $("loginBox").classList.toggle("hidden",which!=="login");
+  $("forgotPasswordBox").classList.toggle("hidden",which!=="forgot");
+  $("resetPasswordBox").classList.toggle("hidden",which!=="reset");
   message("");
 }
 $("showSignup").onclick=()=>showForm("signup");
 $("showLogin").onclick=()=>showForm("login");
+$("showForgotPassword").onclick=()=>{ $("recoveryEmail").value=$("loginEmail").value.trim();showForm("forgot"); };
+$("backToLogin").onclick=()=>showForm("login");
+$("forgotPasswordForm").onsubmit=async e=>{
+  e.preventDefault();const b=e.submitter;b.disabled=true;
+  $("recoveryRequestStatus").textContent="Requesting password-reset email...";
+  try {
+    const email=$("recoveryEmail").value.trim();
+    const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+    if(error)throw error;
+    $("recoveryRequestStatus").textContent="If this email has a New Wave account, a reset link will arrive shortly. Check your inbox and spam folder.";
+  }catch(err){$("recoveryRequestStatus").textContent="Could not send reset email: "+errorText(err);}
+  finally{b.disabled=false;}
+};
+$("resetPasswordForm").onsubmit=async e=>{
+  e.preventDefault();const b=e.submitter;
+  const password=$("newRecoveryPassword").value;
+  if(password!==$("confirmRecoveryPassword").value){$("recoveryUpdateStatus").textContent="Passwords do not match.";return;}
+  b.disabled=true;$("recoveryUpdateStatus").textContent="Updating your password...";
+  try {
+    const {error}=await supabase.auth.updateUser({password});
+    if(error)throw error;
+    $("newRecoveryPassword").value="";$("confirmRecoveryPassword").value="";
+    $("recoveryUpdateStatus").textContent="Password updated successfully. You can now log in with your new password.";
+    await supabase.auth.signOut();
+    recoveryMode=false;
+    history.replaceState(null,"",location.pathname);
+    setUser(null);
+    showForm("login");
+    message("Password updated. Please log in using your new password.");
+  }catch(err){$("recoveryUpdateStatus").textContent="Password update failed: "+errorText(err);}
+  finally{b.disabled=false;}
+};
 function setUser(user){
   const changed=currentUser?.id!==user?.id;
   currentUser=user;
@@ -384,11 +436,13 @@ if (user) {
       }
     });
 }
-  $("guestActions").classList.toggle("hidden",!!user);
-  $("app").classList.toggle("hidden",!user);
+  $("guestActions").classList.toggle("hidden",!!user || recoveryMode);
+  $("app").classList.toggle("hidden",!user || recoveryMode);
   $("logout").classList.toggle("hidden",!user);
   $("signupBox").classList.add("hidden");
   $("loginBox").classList.add("hidden");
+  $("forgotPasswordBox").classList.add("hidden");
+  $("resetPasswordBox").classList.toggle("hidden",!recoveryMode);
   $("userEmail").textContent=user?.email||"";
   if(user&&changed){loadTracks();loadFeed();searchArtists();loadProfile();loadCollabs();loadFriends();loadBlockedArtists();loadMyGallery();refreshMessageBadge();}
   if(!user){updateMessageBadge(0);if(messageBadgePoll){clearInterval(messageBadgePoll);messageBadgePoll=null;}}
@@ -424,7 +478,9 @@ $("logout").onclick=async()=>{
   if(error)message("Logout failed: "+errorText(error));
   else{setUser(null);message("You have logged out.");}
 };
-supabase.auth.onAuthStateChange((_event,session)=>{
+supabase.auth.onAuthStateChange((event,session)=>{
+  // Recovery links can carry a token in the URL hash; Supabase exchanges it for a session.
+  if(event==="PASSWORD_RECOVERY") recoveryMode=true;
   // Schedule UI work outside the auth callback to avoid auth lock contention.
   setTimeout(()=>setUser(session?.user??null),0);
 });
