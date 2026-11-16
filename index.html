@@ -173,7 +173,12 @@ footer{text-align:center;padding:20px;border-top:1px solid var(--border)}
 <p class="small" id="settingsExportStatus" role="status" aria-live="polite"></p>
 <hr class="divider">
 <h3>Delete account</h3>
-<p>Permanent account deletion is not available yet. It requires a secure server-side process to remove your login and handle uploaded files, messages and related records. This will be completed before launch.</p>
+
+<p>You're in control of your New Wave account. You can request account deletion at any time. Your account will enter a 30-day recovery period, during which you can cancel the request.</p>
+<button type="button" id="startAccountDeletion">Request account deletion</button>
+<button type="button" id="cancelAccountDeletion" class="secondary">Cancel deletion request</button>
+<p class="small" id="accountDeletionStatus" role="status" aria-live="polite"></p>
+
 </section>
 <section id="tab-discover" class="card"><h2>Discover artists</h2><p>Find musicians by their artist name or username. You do not need to be friends to view their public profiles.</p><form id="artistSearchForm"><label>Search artists<input id="artistSearchInput" maxlength="100" placeholder="Search name or @username" autocomplete="off"></label><button type="submit">Search artists</button> <button type="button" class="secondary" id="browseArtists">Browse artists</button></form><div id="artistSearchResults" aria-live="polite"></div><hr class="divider"><h2>Discover music</h2><button id="refreshFeed" class="secondary">Refresh feed</button><div id="feed"></div></section>
 <section class="card" id="rideTheWave" data-home-only="true">
@@ -1771,6 +1776,58 @@ async function loadMyAppeals() {
 }
 
 $("refreshAdminAppeals").onclick = loadAdminAppeals;
+
+async function handleAccountDeletion(action) {
+  const status = $("accountDeletionStatus");
+  const startButton = $("startAccountDeletion");
+  const cancelButton = $("cancelAccountDeletion");
+
+  const { data: { session }, error: sessionError } =
+    await supabase.auth.getSession();
+
+  if (sessionError || !session) {
+    status.textContent = "Please log in first.";
+    return;
+  }
+
+  if (action === "start") {
+    if (!confirm(
+      "Request account deletion? You will have 30 days to cancel."
+    )) return;
+  }
+
+  startButton.disabled = true;
+  cancelButton.disabled = true;
+  status.textContent = "Processing your request...";
+
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      "newwave-account-deletion",
+      { body: { action } }
+    );
+
+    if (error) throw error;
+    if (!data?.success) {
+      throw new Error(data?.error || "Request failed");
+    }
+
+    status.textContent = data.message ||
+      "Your account request was successful.";
+  } catch (error) {
+    status.textContent =
+      "Account request failed: " + error.message;
+  } finally {
+    startButton.disabled = false;
+    cancelButton.disabled = false;
+  }
+}
+
+$("startAccountDeletion").onclick = () =>
+  handleAccountDeletion("start");
+
+$("cancelAccountDeletion").onclick = () =>
+  handleAccountDeletion("cancel");
+
 </script>
 </body>
   </html>
